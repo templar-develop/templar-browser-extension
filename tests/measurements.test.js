@@ -50,3 +50,34 @@ test('cancellation stops all four open speed-test streams and returns no partial
   await assert.rejects(task, /MEASUREMENT_CANCELLED/);
   assert.equal(requests, 4); assert.ok(cancelled >= 4);
 });
+
+test('live bandwidth progress uses only observed payload and stays within the final measurement', async () => {
+  for (const direction of ['download', 'upload']) {
+    let clock = 0; const samples = [];
+    const result = await measureBandwidth(direction, { duration: 3000, maxBytes: 12 * 1024 * 1024, now: () => clock,
+      onSample: async sample => samples.push(sample), fetcher: async (url, options) => {
+        const bytes = direction === 'download' ? Number(new URL(url).searchParams.get('bytes')) : options.body.byteLength;
+        return { ok: true, body: { getReader() { let read = false; return { async read() {
+          if (read) return { done: true }; read = true; clock += 200;
+          return { done: false, value: new Uint8Array(direction === 'download' ? bytes : 2) };
+        }, async cancel() {} }; } } };
+      } });
+    assert.ok(samples.length > 1);
+    for (const sample of samples) {
+      assert.ok(sample.bytes <= result.bytes);
+      assert.equal(sample.mbps, Math.round(sample.bytes * 8 / sample.durationMs / 1000 * 10) / 10);
+    }
+    assert.ok(samples.length < 25, 'progress must be throttled');
+  }
+});
+
+test('speed gauge bounds untrusted progress and follows the measured phase', async () => {
+  const { speedPresentation, renderSpeedTest } = await import('../speedtest-ui.js');
+  const progress = speedPresentation({ busy: true, job: { kind: 'speedtest', stage: 'upload', speed: { latency: 43, download: 82.4, mbps: 31.7 } } });
+  assert.equal(progress.stage, 'upload'); assert.equal(progress.reading, '31.7'); assert.equal(progress.download, '82.4'); assert.equal(progress.upload, '—');
+  assert.ok(progress.angle > -120 && progress.angle < 120);
+  const invalid = speedPresentation({ busy: true, job: { kind: 'speedtest', stage: '<script>', speed: { mbps: Infinity, download: '<img>', latency: -1 } } });
+  assert.equal(invalid.reading, '—'); assert.equal(invalid.angle, -120); assert.equal(invalid.download, '—');
+  const html = renderSpeedTest({ runtime: true, connected: true, busy: true, job: { kind: 'speedtest', stage: 'download', speed: { mbps: 82.4 } } });
+  assert.match(html, /data-measurement-cancel/); assert.match(html, /data-speed-reading>82.4/);
+});

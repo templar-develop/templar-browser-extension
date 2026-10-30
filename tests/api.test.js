@@ -61,8 +61,15 @@ test('login errors expose only bounded known codes for their matching status', a
     [409, 'DEVICE_LIMIT_REACHED', 'DEVICE_LIMIT_REACHED'], [403, 'SUBSCRIPTION_REQUIRED', 'SUBSCRIPTION_REQUIRED'],
     [403, 'secret-account-data', 'ACCESS_DENIED'], [503, 'INVALID_LOGIN', 'SERVICE_UNAVAILABLE']]) {
     const api = new BrowserApi('https://cabinet.templarvpn.com/api/browser/v1', { fetcher: async () => new Response(JSON.stringify({ error }), { status, headers: { 'Content-Type': 'application/json' } }) });
-    await assert.rejects(api.request('/auth/email'), { code: expected });
+    await assert.rejects(api.request('/auth/cabinet/poll'), { code: expected });
   }
+});
+
+test('removed password login cannot send credentials from the extension', async () => {
+  let calls = 0;
+  const api = new BrowserApi('https://cabinet.templarvpn.com/api/browser/v1', { fetcher: async () => { calls++; } });
+  await assert.rejects(api.request('/auth/email', { method: 'POST', body: { email: 'test@example.com', password: 'unused' } }), { code: 'INVALID_API_PATH' });
+  assert.equal(calls, 0);
 });
 
 test('an explicit cancellation interrupts an API response body without exposing transport errors', async t => {
@@ -82,4 +89,11 @@ for (const status of [404, 405, 501]) test(`unsupported optional latency API (${
   const api = new BrowserApi('https://cabinet.templarvpn.com/api/browser/v1', { fetcher: async () => new Response('{}', { status, headers: { 'Content-Type': 'application/json' } }) });
   await assert.rejects(api.request('/latency'), { code: 'LATENCY_UNAVAILABLE' });
   await assert.rejects(api.request('/connect'), { code: 'SERVICE_UNAVAILABLE' });
+});
+
+
+test('optional account identity is bounded, compatible with old servers and never accepts hidden controls', () => {
+  assert.equal(checkedSubscription(subscription()).accountLabel, null);
+  for (const label of ['@templar_tester', 'test@example.test', 'Иван Петров']) assert.equal(checkedSubscription({ ...subscription(), accountLabel: label }).accountLabel, label);
+  for (const label of [123, {}, 'a'.repeat(255), 'hidden\u202eowner', 'a\nb', ' owner ']) assert.equal(checkedSubscription({ ...subscription(), accountLabel: label }).accountLabel, null);
 });

@@ -490,3 +490,47 @@ test('Auto cannot hide denied authorization behind optional diagnostics fallback
   await assert.rejects(f.core.connect(), /ACCESS_DENIED/);
   assert.equal(connects, 0); assert.equal(f.core.publicState().status, 'blocked');
 });
+
+test('connection start survives over an hour of renewals, worker reopening and subscription refresh', async () => {
+  const f = fixture(); let now = f.now;
+  f.core.now = () => now;
+  f.account.sessionExpiresAt = now + 86400000;
+  f.account.subscription.expiresAt = now + 86400000;
+  const request = f.api.request.bind(f.api);
+  f.api.request = async (path, options) => path === '/connect' ? { ...f.lease, expiresAt: now + 120000 } : request(path, options);
+  await f.core.authenticate('/session', {}); await f.core.connect(); const original = f.core.connectedAt;
+  for (let i = 0; i < 122; i++) { now += 30000; await f.core.refresh(); assert.equal(f.core.connectedAt, original); }
+  const restarted = new Controller({ api: f.api, driver: f.driver, local: f.local, session: f.session, now: () => now });
+  await restarted.init(); assert.equal(restarted.publicState().connectedAt, original);
+  const { connectionElapsed } = await import('../runtime/auth-view.js');
+  assert.equal(connectionElapsed(restarted.publicState().connectedAt, now), '1:01:00');
+  await restarted.disconnect(); assert.equal(restarted.publicState().connectedAt, null);
+});
+
+test('speed test renews a near-expiry lease without resetting the connection clock or bypassing routing', async () => {
+  const f = fixture(); await f.core.acceptSession(f.account); await f.core.connect();
+  const started = f.core.connectedAt;
+  const requests = [];
+  const request = f.api.request.bind(f.api);
+  f.api.request = async (path, options) => {
+    requests.push(path);
+    if (path === '/connect') return { ...f.lease, expiresAt: f.core.now() + 120_000 };
+    return request(path, options);
+  };
+  await f.core.prepareSpeedTest(); assert.deepEqual(requests, []);
+  f.core.now = () => f.now + 45_000;
+  await f.core.prepareSpeedTest();
+  assert.deepEqual(requests, ['/connect']);
+  assert.equal(f.core.connectedAt, started);
+  assert.equal(f.core.lease.expiresAt, f.now + 165_000);
+  f.core.rules = { mode: 'only', domains: ['example.com'], rfServices: false };
+  await assert.rejects(f.core.prepareSpeedTest(), /SPEEDTEST_ROUTE_EXCLUDED/);
+  assert.deepEqual(requests, ['/connect']);
+  f.core.rules = { mode: 'all', domains: [], rfServices: false };
+  f.core.now = () => f.now + 100_000;
+  f.api.request = async () => { throw new Error('ACCESS_DENIED'); };
+  await assert.rejects(f.core.prepareSpeedTest(), /ACCESS_DENIED/);
+  assert.equal(f.core.publicState().status, 'blocked');
+  await f.core.disconnect();
+  await assert.rejects(f.core.prepareSpeedTest(), /ACCESS_DENIED/);
+});
