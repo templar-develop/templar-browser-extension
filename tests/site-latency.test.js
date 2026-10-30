@@ -11,7 +11,7 @@ const ticket = () => ({ regionId: region.id, host: region.latencyHost, ticket: '
 test('site ping warms the route and measures fixed-site replies; only a scoped ticket leaves the browser', async () => {
   let time = 0; const timings = [600, 70, 90]; const value = ticket();
   const ms = await measureSite(value, { now: () => time, fetcher: async (url, options) => {
-    assert.match(url, /^https:\/\/browser-ch.platina300.org:9441\/site-latency\?nonce=[a-f0-9-]{36}$/);
+    assert.match(url, /^https:\/\/browser-ch\.platina300\.org:9441\/site-latency\?nonce=[a-f0-9-]{36}$/);
     assert.deepEqual(options.headers, { Authorization: 'Bearer ' + value.ticket });
     assert.equal(options.credentials, 'omit'); assert.equal(options.redirect, 'error');
     time += timings.shift(); return new Response(null, { status: 204 });
