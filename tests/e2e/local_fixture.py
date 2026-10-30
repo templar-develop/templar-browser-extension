@@ -64,6 +64,7 @@ class Fixture:
                              check=True, capture_output=True).stdout
         self.spki = base64.b64encode(hashlib.sha256(der).digest()).decode()
         self.context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+        self.context.minimum_version = ssl.TLSVersion.TLSv1_2
         self.context.load_cert_chain(self.cert, self.key)
         self.servers = []
         self.leases = {}
@@ -208,6 +209,7 @@ class Fixture:
                 record[1] -= 1
                 # Real validated HTTPS to the fixture's one fixed local site.
                 context = ssl.create_default_context(cafile=str(fixture.cert))
+                context.minimum_version = ssl.TLSVersion.TLSv1_2
                 with socket.create_connection(('127.0.0.1', fixture.target_port), timeout=3) as raw:
                     with context.wrap_socket(raw, server_hostname=TARGET) as upstream:
                         upstream.sendall(('GET /generate_204 HTTP/1.1\r\nHost: ' + TARGET + '\r\n\r\n').encode())
