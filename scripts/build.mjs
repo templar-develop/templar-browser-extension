@@ -28,6 +28,8 @@ for (const target of ['chrome', 'firefox']) {
   await cp(join(root, 'node_modules/dompurify/dist/purify.es.mjs'), join(folder, 'vendor/purify.es.mjs'));
   await cp(join(root, 'node_modules/dompurify/LICENSE'), join(folder, 'vendor/DOMPurify-LICENSE'));
   await cp(join(root, 'node_modules/dompurify/LICENSE-MPL'), join(folder, 'vendor/DOMPurify-LICENSE-MPL'));
+  await cp(join(root, 'node_modules/qrcode-generator/dist/qrcode.mjs'), join(folder, 'vendor/qrcode.mjs'));
+  await cp(join(root, 'vendor/QR-Code-LICENSE'), join(folder, 'vendor/QR-Code-LICENSE'));
   await writeFile(join(folder, 'runtime/config.js'), `export const API_BASE = ${JSON.stringify(apiBase)};\nexport const ALLOW_LOCAL_FIXTURE = ${fixture};\nexport const BUILD_VERSION = '${version}';\nexport const SOURCE_CODE_URL = ${JSON.stringify(repository?.url ?? null)};\n`);
   await writeFile(join(folder, 'popup.html'), popup);
   await writeFile(join(folder, 'standalone.css'), 'html,body{width:398px;min-width:398px;margin:0;overflow:hidden}body>.popup{height:600px;border-radius:0;border:0}.build-caption{font-size:9px;color:var(--bone-faint)}');
