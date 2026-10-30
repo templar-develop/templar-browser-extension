@@ -1,6 +1,6 @@
 {
   "name": "templar-browser-interface",
-  "version": "0.4.6",
+  "version": "0.5.0",
   "private": true,
   "license": "GPL-3.0-only",
   "type": "module",
@@ -18,7 +18,8 @@
     "web-ext": "10.8.0"
   },
   "dependencies": {
-    "dompurify": "3.4.17"
+    "dompurify": "3.4.17",
+    "qrcode-generator": "2.0.4"
   },
   "repository": {
     "type": "git",

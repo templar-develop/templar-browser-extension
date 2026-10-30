@@ -13,15 +13,15 @@ export function renderRfServicesQuestion(preferences, continueAttribute) {
   return `<section class="onboarding first-run"><div class="onboarding-emblem">${icon('routes')}</div><h2>Российские сервисы</h2><p class="field-help">Да — через VPN. Нет — напрямую, через вашего провайдера.</p>${renderRfServicesSwitch(preferences)}<button class="primary-button rf-continue" ${continueAttribute}>Продолжить ${icon('arrow')}</button><p class="field-help rf-choice-note">Позже: Настройки → Маршрутизация → Российские сервисы через VPN.</p></section>`;
 }
 
-export function renderSettings(view, preferences, { runtime = false, version = '', sourceUrl = null } = {}) {
-  const content = renderSettingsContent(view, preferences, sourceUrl);
+export function renderSettings(view, preferences, { runtime = false, version = '', sourceUrl = null, signedIn = false } = {}) {
+  let content = renderSettingsContent(view, preferences, sourceUrl);
+  if (view === 'settings' && signedIn) content = content.replace('</div></section>', `</div><button class="settings-logout text-button" ${runtime ? 'data-command="LOGOUT"' : 'data-action="remove"'}>${icon('logout')} Выйти</button></section>`);
   if (!runtime) return content;
   return content
     .replace('Демо: правила сохраняются локально, но к реальному трафику пока не применяются.', 'Правила применяются к новым запросам при активном VPN.')
     .replace('0.1.0 · демо', `${escapeHTML(version)} · тестовая сборка`)
-    .replace('<div class="about-copy">', '<a class="outline-button" href="privacy.html" target="_blank" rel="noopener noreferrer">Данные и подключение</a><div class="about-copy">')
+    .replace('<div class="about-copy">', '<a class="outline-button about-privacy" href="privacy.html" target="_blank" rel="noopener noreferrer">Данные и подключение</a><div class="about-copy">')
     .replace('Этот макет не отправляет данные, не сохраняет пароли и не собирает историю посещений. Локально сохраняются настройки и выбранная локация.', 'Данные входа передаются только сервису Templar VPN. Пароли и история посещений не сохраняются. Настройки остаются локально.')
-    .replace('Интерактивный интерфейс. Подключение, вход и пинг демонстрационные; рабочая сеть не меняется.', 'Тестовая сборка. Для подключения требуется активная подписка Templar VPN.')
     .replace('В макете используйте только демонстрационные данные.', 'Используйте данные своего аккаунта Templar VPN.')
     .replace('В макете выбор и пинг демонстрационные.', 'Автовыбор сравнивает задержку HTTPS до сайта через основные серверы и подключает самый быстрый доступный.')
     .replace('Пока нет. Сейчас показываются тестовые значения. Реальные замеры через подключение появятся на следующем этапе.', 'Да. Измеряется запрос HTTPS до www.gstatic.com через выбранный VLESS-профиль. TCP и XHTTP проверяются отдельно. Это не ICMP-пинг.');
@@ -68,7 +68,7 @@ function faq() {
     ['Что делает автовыбор?', 'Выбирает самый быстрый доступный сервер. Выбранная вручную страна сама не меняется. В макете выбор и пинг демонстрационные.'],
     ['Как работают правила доменов?', '«Кроме выбранных» исключает домены из VPN. «Только выбранные» направляет через VPN только перечисленные домены. Правило включает сам домен и его поддомены.'],
     ['Пинг уже настоящий?', 'Пока нет. Сейчас показываются тестовые значения. Реальные замеры через подключение появятся на следующем этапе.'],
-    ['Как заменить ссылку или выйти?', 'На главном экране нажмите «Заменить ссылку» или «Выйти». При отмене замены текущая подписка остаётся.'],
+    ['Как сменить аккаунт или выйти?', 'Нажмите значок выхода справа вверху или «Выйти» внизу настроек. Затем войдите в другой аккаунт или добавьте ссылку подписки.'],
     ['Что делать, если подписка закончилась?', 'Продлите подписку в кабинете или боте, затем обновите её в расширении. Обновление само по себе не продлевает срок.'],
   ];
   return `<section class="settings-view">${back()}<h2>Вопросы и ответы</h2><p class="settings-description">Всё, что нужно для начала.</p><div class="faq-list">${questions.map(([question, answer]) => `<details><summary>${question}${icon('chevron')}</summary><p>${answer}</p></details>`).join('')}</div><h3 class="support-title">Не нашли ответ?</h3>${supportContacts()}</section>`;
@@ -89,10 +89,10 @@ function about(sourceUrl) {
   return `<section class="settings-view about-view">${back()}
     <div class="about-brand"><span class="brand-mark"><img src="./assets/mark.svg" width="24" height="24" alt=""></span><h2>Templar · VPN</h2><p>Свобода в один клик.</p></div>
     <div class="about-version"><span>Версия</span><strong>0.1.0 · демо</strong></div>
-    <p class="settings-description">Расширение для Chrome и Firefox.<br>Ваша подписка — только для браузера.</p>
+    <p class="settings-description">Расширение для вашего браузера.</p>
     <a class="outline-button" href="https://templarvpn.com/" target="_blank" rel="noopener noreferrer">Сайт Templar VPN ${icon('arrow')}</a>
     <a class="outline-button about-bot" href="https://t.me/TemplarVPN_bot" target="_blank" rel="noopener noreferrer">${icon('telegram')} Telegram-бот</a>
     ${sourceLink}
     <h3 class="support-title">Поддержка</h3>${supportContacts()}
-    <div class="about-copy"><h3>Конфиденциальность</h3><p>Этот макет не отправляет данные, не сохраняет пароли и не собирает историю посещений. Локально сохраняются настройки и выбранная локация.</p><h3>Текущий этап</h3><p>Интерактивный интерфейс. Подключение, вход и пинг демонстрационные; рабочая сеть не меняется.</p><p>Флаги: <a href="https://github.com/jdecked/twemoji" target="_blank" rel="noopener noreferrer">Twemoji</a>, Twitter и другие авторы · <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener noreferrer">CC BY 4.0</a>.</p></div></section>`;
+    <div class="about-copy"><h3>Конфиденциальность</h3><p>Этот макет не отправляет данные, не сохраняет пароли и не собирает историю посещений. Локально сохраняются настройки и выбранная локация.</p><p>Флаги: <a href="https://github.com/jdecked/twemoji" target="_blank" rel="noopener noreferrer">Twemoji</a>, Twitter и другие авторы · <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener noreferrer">CC BY 4.0</a>.</p></div></section>`;
 }

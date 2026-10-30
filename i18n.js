@@ -1,5 +1,23 @@
 // Offline RU/EN UI copy. No translation service or network access.
 const english = new Map(Object.entries({
+  'Личный кабинет': 'My account', 'Готовы к проверке': 'Ready to test', 'Подготавливаем…': 'Preparing…',
+  'Проверяем задержку': 'Checking latency',
+  'Проверка идёт через выбранную локацию VPN до Cloudflare и расходует трафик подписки. Показания обновляются во время замера.': 'The test uses the selected VPN route to Cloudflare and counts towards your subscription traffic. Readings update during the test.',
+  'Для проверки добавьте speed.cloudflare.com в VPN-маршрут в настройках маршрутизации.': 'To run the test, include speed.cloudflare.com in your VPN routing settings.',
+  'Сервер проверки скорости недоступен. Попробуйте ещё раз или выберите другую локацию.': 'The speed test server is unavailable. Try again or choose another location.',
+
+  'Войти через кабинет': 'Sign in through your account', 'Открыть сайт или отсканировать QR-код': 'Open the website or scan a QR code',
+  'Email и пароль': 'Email and password', 'Ввести данные прямо в расширении': 'Enter your details in the extension',
+  'Кабинет / QR': 'Account / QR', 'Email': 'Email', 'Вход через кабинет.': 'Sign in through your account.',
+  'Подтвердите вход на сайте или с телефона. Копировать ссылку подписки не нужно.': 'Approve sign-in on the website or your phone. No subscription link needed.',
+  'Сканируйте QR или откройте кабинет. Сверьте код и подтвердите подключение.': 'Scan the QR or open your account. Match the code and approve the connection.',
+  'Открыть кабинет': 'Open account', 'Скопировать ссылку': 'Copy link',
+  'Код действует ещё': 'Code expires in', '· Ожидаем подтверждения…': '· Waiting for approval…',
+  'Создать новый QR-код': 'Generate a new QR code',
+  'Время входа истекло. Создайте новый QR-код.': 'Sign-in expired. Generate a new QR code.',
+  'Подключение отклонено в кабинете. Можно начать заново.': 'Connection declined in your account. You can start again.',
+  'Не удалось скопировать ссылку. Используйте QR-код или кнопку входа.': 'Could not copy the link. Use the QR code or the sign-in button.',
+
   'Задержка HTTPS до сайта через VPN': 'HTTPS site latency through VPN',
   'Задержка HTTPS до www.gstatic.com через каждую локацию. Проверка идёт параллельно и не прерывает VPN.': 'HTTPS latency to www.gstatic.com through each location. Checks run in parallel without interrupting the VPN.',
   'Автовыбор сравнивает задержку HTTPS до сайта через основные серверы и подключает самый быстрый доступный.': 'Auto compares HTTPS site latency through the primary servers and connects to the fastest available one.',
@@ -106,9 +124,11 @@ const english = new Map(Object.entries({
   'Что делать, если подписка закончилась?': 'What if my subscription has expired?',
   'Продлите подписку в кабинете или боте, затем обновите её в расширении. Обновление само по себе не продлевает срок.': 'Renew in your account or the bot, then refresh the subscription in the extension. Refreshing does not renew it.',
   'Версия': 'Version', '0.1.0 · демо': '0.1.0 · demo', 'Свобода в один клик.': 'Freedom in one click.',
-  'Расширение для Chrome и Firefox.': 'An extension for Chrome and Firefox.', 'Ваша подписка — только для браузера.': 'Your subscription, just for your browser.',
+  'Расширение для вашего браузера.': 'An extension for your browser.', 'Ваша подписка — только для браузера.': 'Your subscription, just for your browser.',
   'Сайт Templar VPN': 'Templar VPN website', 'Исходный код на GitHub': 'Source code on GitHub', 'Конфиденциальность': 'Privacy',
   'Этот макет не отправляет данные, не сохраняет пароли и не собирает историю посещений. Локально сохраняются настройки и выбранная локация.': 'This prototype sends no data, stores no passwords and collects no browsing history. Settings and your selected location are saved locally.',
+  'Как сменить аккаунт или выйти?': 'How do I switch accounts or sign out?',
+  'Нажмите значок выхода справа вверху или «Выйти» внизу настроек. Затем войдите в другой аккаунт или добавьте ссылку подписки.': 'Click the sign-out icon at the top right or Sign out at the bottom of Settings. Then sign in to another account or add a subscription link.',
   'Текущий этап': 'Current stage', 'Интерактивный интерфейс. Подключение, вход и пинг демонстрационные; рабочая сеть не меняется.': 'Interactive UI. Connection, sign-in and ping are simulated; your network settings stay unchanged.',
   'Флаги:': 'Flags:', ', Twitter и другие авторы ·': ', Twitter and other contributors ·',
   'Только для браузера': 'Browser only', 'ДЕМО': 'DEMO', 'соединение не меняется': 'connection is unchanged',
@@ -119,7 +139,7 @@ const english = new Map(Object.entries({
   'Одно нажатие — и вы в сети': 'One click and you are online', 'ЛОКАЦИЯ': 'LOCATION', 'Выбрана вручную': 'Selected manually',
   'Автовыбор': 'Auto-select', 'Москва': 'Moscow', 'Швейцария': 'Switzerland', 'Швеция': 'Sweden', 'Нидерланды': 'Netherlands',
   'Выбирает самый быстрый сервер': 'Chooses the fastest server', 'Базовый': 'Basic', 'Трафик безлимитный': 'Unlimited traffic',
-  'Обновляем…': 'Refreshing…', 'Обновить подписку': 'Refresh subscription', 'Заменить ссылку': 'Replace link', 'Выйти': 'Sign out', 'мс': 'ms', 'демо': 'demo',
+  'Обновляем…': 'Refreshing…', 'Обновить подписку': 'Refresh subscription', 'Заменить ссылку': 'Replace link', 'Выйти': 'Sign out', 'О расширении': 'About', 'мс': 'ms', 'демо': 'demo',
   'Другую страну не включаем автоматически. Можно повторить попытку или выбрать локацию.': 'We do not switch countries automatically. Retry or choose a location.',
   'По ссылке': 'Link', 'Личный кабинет': 'Account', 'Способ входа': 'Sign-in method', 'Войдите в кабинет.': 'Sign in to your account.',
   'Вход через Telegram.': 'Sign in with Telegram.', 'Всё начинается': 'It all starts', 'с вашей подписки.': 'with your subscription.',
@@ -199,9 +219,10 @@ export function translateText(value) {
       .replace(/^Подключить браузер$/, 'Connect browser').replace(/^Отключить браузер$/, 'Disconnect browser')
       .replace(/^Удалить домен /, 'Remove domain ').replace(/^Демонстрационный пинг: /, 'Demo ping: ')
       .replace(/демонстрационный пинг /g, 'demo ping ').replace(/самый быстрый сервер/g, 'fastest server')
-      .replace(/миллисекунд/g, 'milliseconds').replace(/обновляется/g, 'refreshing').replace(/ мс\b/g, ' ms')
+      .replace(/миллисекунд/g, 'milliseconds').replace(/обновляется/g, 'refreshing').replace(/ мс(?=$|[\s·,.)])/g, ' ms')
+      .replace(/(\d+\s*\/\s*\d+) устройств(?=$|[\s·,.)])/g, '$1 devices')
       .replace(/Автовыбор/g, 'Auto-select').replace(/Москва/g, 'Moscow').replace(/Швейцария/g, 'Switzerland')
-      .replace(/Швеция/g, 'Sweden').replace(/Нидерланды/g, 'Netherlands')
+      .replace(/Швеция/g, 'Sweden').replace(/Нидерланды/g, 'Netherlands').replace(/Польша/g, 'Poland')
       .replace(/Дополнительный/g, 'Additional').replace(/без рекламы/g, 'ad-free')
       .replace(/Прототип расширения Templar VPN/g, 'Templar VPN extension prototype')
       .replace(/Templar VPN, прототип расширения/g, 'Templar VPN, extension prototype');
@@ -210,6 +231,7 @@ export function translateText(value) {
 }
 
 function localizeElement(element) {
+  if (element.closest?.('[translate="no"]')) return;
   for (const attribute of ['aria-label', 'title', 'placeholder']) {
     if (!element.hasAttribute?.(attribute)) continue;
     const sources = attributeSources.get(element) || {};
@@ -230,7 +252,7 @@ function localize(root) {
   const nodes = root.nodeType === Node.TEXT_NODE ? [root] : [];
   for (let node = walker.nextNode(); node; node = walker.nextNode()) nodes.push(node);
   for (const node of nodes) {
-    if (['SCRIPT', 'STYLE', 'CODE'].includes(node.parentElement?.tagName) || !node.nodeValue.trim()) continue;
+    if (node.parentElement?.closest('[translate="no"]') || ['SCRIPT', 'STYLE', 'CODE'].includes(node.parentElement?.tagName) || !node.nodeValue.trim()) continue;
     const record = textSources.get(node);
     const source = record && node.nodeValue === record.output ? record.source : node.nodeValue;
     const output = translateText(source);

@@ -49,6 +49,7 @@
     "runtime/api.js",
     "runtime/auth-view.js",
     "runtime/background.js",
+    "runtime/cabinet-login.js",
     "runtime/config.js",
     "runtime/controller.js",
     "runtime/diagnostics.js",
@@ -59,6 +60,7 @@
     "runtime/policy.js",
     "runtime/popup.js",
     "runtime/proxy-driver.js",
+    "runtime/qr-code.js",
     "runtime/russian-services.js",
     "runtime/safe-dom.js",
     "runtime/site-latency.js",
@@ -85,6 +87,7 @@
     "tests/background.test.js",
     "tests/build-config.test.js",
     "tests/build-deps.test.js",
+    "tests/cabinet-login.test.js",
     "tests/controller.test.js",
     "tests/e2e/chromium_ui.py",
     "tests/e2e/local_fixture.py",
@@ -103,6 +106,7 @@
     "tests/site-latency.test.js",
     "tests/stability.test.js",
     "tests/starfield.test.js",
-    "tests/telegram-login.test.js"
+    "tests/telegram-login.test.js",
+    "vendor/QR-Code-LICENSE"
   ]
 }

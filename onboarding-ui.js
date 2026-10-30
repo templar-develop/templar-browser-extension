@@ -2,8 +2,8 @@ const icon = name => `<svg class="icon" aria-hidden="true"><use href="#i-${name}
 
 export function renderAuthChoice(backAttribute = '') {
   const methods = [
+    ['cabinet', 'user', 'Войти через кабинет', 'Открыть сайт или отсканировать QR-код'],
     ['link', 'link', 'Ссылка подписки', 'Та же ссылка, которую вы добавляете в Happ'],
-    ['email', 'user', 'Личный кабинет', 'Email и пароль от вашего аккаунта'],
     ['telegram', 'telegram', 'Telegram', 'Подтверждение входа через нашего бота'],
   ];
   return `<section class="onboarding auth-choice">

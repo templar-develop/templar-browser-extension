@@ -4,11 +4,15 @@
 
 [Website](https://templarvpn.com/) · [Telegram bot](https://t.me/TemplarVPN_bot) · [Account](https://cabinet.templarvpn.com/)
 
-Version 0.4.6, 30 October 2026. The beta packages for manual installation are
+Version 0.5.0, 30 October 2026. The beta packages for manual installation are
 available in **[GitHub Releases](https://github.com/templar-develop/templar-browser-extension/releases)**.
 The Firefox package is signed by Mozilla and remains installed after restart.
 Store listings are not published yet. The extension protects browser traffic;
 other applications keep using their usual connection.
+
+Sign in through your account using a button or QR code, then approve the
+matching code on the website. Subscription-link and Telegram sign-in remain
+available. Email/password sign-in takes place in the web account.
 
 ## Store installation
 

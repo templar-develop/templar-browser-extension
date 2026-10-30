@@ -32,3 +32,10 @@ rejects unexpected versions/source layouts; `tests/build-deps.test.js` exercises
 the original prototype-poisoning payload and ordinary merge behavior.
 The npm advisory still identifies the locked upstream version. This tooling
 and its patch do not enter the installed extension packages.
+
+## QR Code Generator
+
+The extension bundles qrcode-generator 2.0.4 by Kazuhiko Arase under the MIT
+license. Its license is included in `vendor/QR-Code-LICENSE` in packaged builds.
+QR codes are generated locally; no third-party QR service receives login links.
+Source: https://github.com/kazuhikoarase/qrcode-generator .
