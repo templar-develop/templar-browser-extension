@@ -3,9 +3,10 @@ import { API_BASE, ALLOW_LOCAL_FIXTURE } from './config.js';
 import { BrowserApi } from './api.js';
 import { Controller } from './controller.js';
 import { ProxyDriver } from './proxy-driver.js';
-import { authenticationResponse, protectedHost } from './policy.js';
+import { authenticationResponse } from './policy.js';
 import { checkedSubscriptionLink } from './subscription-link.js';
 import { TelegramLogin } from './telegram-login.js';
+import { CabinetLogin } from './cabinet-login.js';
 import { measureLatency, measureSpeed } from './measurements.js';
 
 const api = globalThis.browser || globalThis.chrome;
@@ -15,14 +16,17 @@ const controller = new Controller({ api: remote, driver, local: api.storage.loca
   probe: options => measureLatency(options) });
 const telegram = new TelegramLogin({ remote, session: api.storage.session, deviceId: () => controller.installationId(),
   acceptSession: value => controller.acceptSession(value), openTab: url => api.tabs.create({ url }) });
+const cabinet = new CabinetLogin({ remote, session: api.storage.session, deviceId: () => controller.installationId(),
+  acceptSession: value => controller.acceptSession(value), openTab: url => api.tabs.create({ url }) });
 const jobs = new MeasurementJob(publishState);
-const publicState = async () => ({ ...controller.publicState(), measurement: jobs.snapshot(), telegramPending: await telegram.pending().catch(() => false) });
+const publicState = async () => ({ ...controller.publicState(), measurement: jobs.snapshot(), telegramPending: await telegram.pending().catch(() => false),
+  cabinetLogin: await cabinet.publicState().catch(() => null) });
 let queue = Promise.resolve();
 let renewalAbort = null;
 const authAttempts = new Map();
 const safeCodes = new Set(['SERVICE_NOT_CONFIGURED', 'SERVICE_UNAVAILABLE', 'ACCESS_DENIED', 'RATE_LIMITED',
-  'MEASUREMENT_CANCELLED', 'MEASUREMENT_BUSY', 'DEVICE_LIMIT_REACHED', 'EMAIL_UNVERIFIED', 'SUBSCRIPTION_REQUIRED', 'TELEGRAM_EXPIRED', 'MEASUREMENT_TOO_SHORT',
-  'INVALID_RESPONSE', 'INVALID_RULES', 'INVALID_LEASE', 'INVALID_REGION', 'INVALID_LINK', 'INVALID_LOGIN', 'PROXY_CONFLICT', 'LATENCY_UNAVAILABLE']);
+  'MEASUREMENT_CANCELLED', 'MEASUREMENT_BUSY', 'DEVICE_LIMIT_REACHED', 'EMAIL_UNVERIFIED', 'SUBSCRIPTION_REQUIRED', 'TELEGRAM_EXPIRED', 'CABINET_EXPIRED', 'CABINET_DENIED', 'MEASUREMENT_TOO_SHORT',
+  'SPEEDTEST_ROUTE_EXCLUDED', 'SPEEDTEST_UNAVAILABLE', 'INVALID_RESPONSE', 'INVALID_RULES', 'INVALID_LEASE', 'INVALID_REGION', 'INVALID_LINK', 'INVALID_LOGIN', 'PROXY_CONFLICT', 'LATENCY_UNAVAILABLE']);
 
 const ready = (async () => {
   for (const area of [api.storage.local, api.storage.session]) {
@@ -49,23 +53,26 @@ async function command(message, job) {
     case 'IMPORT': {
       const subscriptionUrl = checkedSubscriptionLink(message.link);
       await controller.authenticate('/session', { subscriptionUrl });
-      await telegram.clear(); return publicState();
+      await telegram.clear(); await cabinet.clear(); return publicState();
     }
-    case 'LOGIN_EMAIL': {
-      if (typeof message.email !== 'string' || message.email.length > 254 || typeof message.password !== 'string'
-        || message.password.length < 1 || new TextEncoder().encode(message.password).length > 72) throw new Error('INVALID_LOGIN');
-      await controller.authenticate('/auth/email', { email: message.email.trim(), password: message.password });
-      await telegram.clear(); return publicState();
-    }
-    case 'TELEGRAM_START': await telegram.start(); await syncTelegramAlarm(); return publicState();
+    case 'TELEGRAM_START': await cabinet.clear(); await telegram.start(); await syncTelegramAlarm(); return publicState();
     case 'TELEGRAM_POLL': await telegram.poll(); return publicState();
+    case 'CABINET_START': await telegram.clear(); await cabinet.start(); return publicState();
+    case 'CABINET_OPEN': await cabinet.open(); return publicState();
+    case 'CABINET_POLL': await cabinet.poll(); return publicState();
+    case 'CABINET_CANCEL': await cabinet.clear(); return publicState();
     case 'PING': return jobs.run(job, options => controller.measureRegions(options));
     case 'SELECT': return controller.select(message.region);
     case 'CONNECT': return jobs.run(job, options => controller.connect(options));
     case 'SPEEDTEST': return jobs.run(job, async options => {
-      if (controller.publicState().status !== 'connected') throw new Error('ACCESS_DENIED');
-      if (!protectedHost('speed.cloudflare.com', controller.rules)) throw new Error('INVALID_RULES');
-      const speedtest = await measureSpeed(options);
+      await controller.prepareSpeedTest(options);
+      let speedtest;
+      try { speedtest = await measureSpeed(options); }
+      catch (error) {
+        if (options.signal.aborted || error.message === 'MEASUREMENT_CANCELLED') throw new Error('MEASUREMENT_CANCELLED');
+        if (['RATE_LIMITED', 'MEASUREMENT_TOO_SHORT', 'INVALID_RESPONSE'].includes(error.message)) throw error;
+        throw new Error('SPEEDTEST_UNAVAILABLE');
+      }
       if (controller.publicState().status !== 'connected') throw new Error('ACCESS_DENIED');
       await controller.rememberSpeedTest(speedtest);
       return controller.publicState();
@@ -73,7 +80,7 @@ async function command(message, job) {
     case 'DISCONNECT': return controller.disconnect();
     case 'REFRESH': return jobs.run(job, options => controller.refresh(options));
     case 'RULES': return job ? jobs.run(job, options => controller.updateRules(message.rules, options)) : controller.updateRules(message.rules);
-    case 'LOGOUT': await telegram.clear(); return controller.logout();
+    case 'LOGOUT': await telegram.clear(); await cabinet.clear(); return controller.logout();
     default: throw new Error('INVALID_RESPONSE');
   }
 }
@@ -91,7 +98,7 @@ async function syncRenewalAlarm() {
 }
 
 async function syncTelegramAlarm() {
-  if (await telegram.pending()) {
+  if (await telegram.pending() || await cabinet.publicState()) {
     if (!await api.alarms.get('templar-login')) await api.alarms.create('templar-login', { periodInMinutes: 0.5 });
   } else await api.alarms.clear('templar-login');
 }
@@ -143,6 +150,9 @@ api.alarms.onAlarm.addListener(alarm => {
       await ready;
       if (await telegram.pending()) {
         try { await telegram.poll(); } catch { /* Safe public state and retryable pending flow survive popup closure. */ }
+      }
+      if (await cabinet.publicState()) {
+        try { await cabinet.poll(); } catch { /* Pending state survives transient errors; terminal failures need a new code. */ }
       }
       await syncTelegramAlarm();
       try { await api.runtime.sendMessage({ type: 'STATE_UPDATED', state: await publicState() }); } catch { /* No popup. */ }

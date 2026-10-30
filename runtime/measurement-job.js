@@ -9,7 +9,7 @@ export class MeasurementJob {
   snapshot() {
     const job = this.current;
     return job ? { kind: job.kind, stage: job.stage, completed: job.completed,
-      total: job.total, pendingRegions: job.pendingRegions, cancelling: job.abort.signal.aborted } : null;
+      total: job.total, speed: job.speed, pendingRegions: job.pendingRegions, cancelling: job.abort.signal.aborted } : null;
   }
   start(kind) {
     if (this.current) throw new Error('MEASUREMENT_BUSY');

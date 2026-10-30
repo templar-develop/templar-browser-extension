@@ -30,7 +30,7 @@ function requestSignal(signal, timeout) {
   return signal ? AbortSignal.any([signal, AbortSignal.timeout(timeout)]) : AbortSignal.timeout(timeout);
 }
 
-async function transfer(fetcher, direction, bytes, now, signal) {
+async function transfer(fetcher, direction, bytes, now, signal, onBytes = async () => {}) {
   throwIfCancelled(signal);
   const start = now();
   const response = await fetcher(ENDPOINT + (direction === 'download' ? '/__down?bytes=' + bytes : '/__up?') + '&templar=' + crypto.randomUUID(),
@@ -48,15 +48,17 @@ async function transfer(fetcher, direction, bytes, now, signal) {
       throwIfCancelled(signal);
       if (done) break;
       received += value.byteLength;
+      if (direction === 'download') await onBytes(value.byteLength);
       if (received > (direction === 'download' ? bytes : 64 * 1024)) throw new Error('INVALID_RESPONSE');
     }
   } finally { signal?.removeEventListener('abort', cancel); await reader.cancel().catch(() => {}); }
   if (direction === 'download' && received !== bytes) throw new Error('INVALID_RESPONSE');
+  if (direction === 'upload') await onBytes(bytes);
   return { bytes, ms: Math.max(1, now() - start) };
 }
 
 export async function measureBandwidth(direction, { fetcher = globalThis.fetch.bind(globalThis), now = () => performance.now(), duration = 6000, streams = 4,
-  maxBytes = direction === 'download' ? 96 * MIB : 64 * MIB, signal } = {}) {
+  onSample = async () => {}, maxBytes = direction === 'download' ? 96 * MIB : 64 * MIB, signal } = {}) {
   throwIfCancelled(signal);
   const group = new AbortController();
   const sharedSignal = signal ? AbortSignal.any([signal, group.signal]) : group.signal;
@@ -66,13 +68,21 @@ export async function measureBandwidth(direction, { fetcher = globalThis.fetch.b
   try {
     await Promise.all(Array.from({ length: streams }, () => transfer(fetcher, direction, initial / 2, now, sharedSignal).catch(error => { group.abort(); throw error; })));
   } catch (error) { throwIfCancelled(signal); throw error; }
-  const start = now(); let reserved = 0; let total = 0; let failure = null;
+  const start = now(); let reserved = 0; let total = 0; let observed = 0; let lastReport = start; let reporting = false; let failure = null;
+  const observe = async bytes => {
+    observed += bytes;
+    const elapsed = now() - start;
+    if (reporting || elapsed < 250 || now() - lastReport < 250) return;
+    lastReport = now(); reporting = true;
+    try { await onSample({ mbps: Math.round(observed * 8 / elapsed / 1000 * 10) / 10, bytes: observed, durationMs: Math.round(elapsed) }); }
+    finally { reporting = false; }
+  };
   await Promise.all(Array.from({ length: streams }, async () => {
     let size = initial;
     while (!failure && !sharedSignal.aborted && now() - start < duration && reserved < maxBytes) {
       const bytes = Math.min(size, maxBytes - reserved); reserved += bytes;
       try {
-        const result = await transfer(fetcher, direction, bytes, now, sharedSignal); total += result.bytes;
+        const result = await transfer(fetcher, direction, bytes, now, sharedSignal, observe); total += result.bytes;
         size = Math.max(64 * 1024, Math.min(direction === 'download' ? 8 * MIB : 2 * MIB, Math.round(bytes * 1000 / result.ms)));
       } catch (error) { failure ||= error; group.abort(); }
     }
@@ -86,12 +96,14 @@ export async function measureBandwidth(direction, { fetcher = globalThis.fetch.b
 
 export async function measureSpeed(options = {}) {
   const onProgress = options.onProgress || (async () => {});
-  await onProgress({ stage: 'latency', completed: 0, total: 3 });
+  await onProgress({ stage: 'latency', completed: 0, total: 3, speed: {} });
   const latency = await measureLatency(options);
-  await onProgress({ stage: 'download', completed: 1, total: 3 });
-  const download = await measureBandwidth('download', options);
-  await onProgress({ stage: 'upload', completed: 2, total: 3 });
-  const upload = await measureBandwidth('upload', options);
+  await onProgress({ stage: 'download', completed: 1, total: 3, speed: { latency } });
+  const download = await measureBandwidth('download', { ...options,
+    onSample: sample => onProgress({ stage: 'download', completed: 1, total: 3, speed: { latency, mbps: sample.mbps } }) });
+  await onProgress({ stage: 'upload', completed: 2, total: 3, speed: { latency, download: download.mbps } });
+  const upload = await measureBandwidth('upload', { ...options,
+    onSample: sample => onProgress({ stage: 'upload', completed: 2, total: 3, speed: { latency, download: download.mbps, mbps: sample.mbps } }) });
   return { latency, download: download.mbps, upload: upload.mbps, bytes: download.bytes + upload.bytes,
     durationMs: download.durationMs + upload.durationMs, method: 'https-4-streams' };
 }

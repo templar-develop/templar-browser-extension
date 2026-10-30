@@ -2,7 +2,7 @@ import { checkedSpeedRecord } from './speed-result.js';
 import { throwIfCancelled } from './measurement-job.js';
 import { measureSites, measureSite } from './site-latency.js';
 import { measureGateways, measureGateway } from './gateway-latency.js';
-import { checkedLease, checkedRules } from './policy.js';
+import { checkedLease, checkedRules, protectedHost } from './policy.js';
 import { checkedSession, checkedSubscription, checkedRefresh } from './api.js';
 
 const DEFAULT_RULES = { mode: 'all', domains: [], rfServices: false };
@@ -145,6 +145,14 @@ export class Controller {
     }
   }
 
+  async prepareSpeedTest(options = {}) {
+    if (this.publicState().status !== 'connected') throw new Error('ACCESS_DENIED');
+    if (!protectedHost('speed.cloudflare.com', this.rules)) throw new Error('SPEEDTEST_ROUTE_EXCLUDED');
+    // The measurement occupies the command queue. Renew a near-expiry lease
+    // before starting, so a slow test can finish within its authorized deadline.
+    if (Math.min(this.lease.expiresAt, this.account.sessionExpiresAt) - this.now() < 90_000) await this.connect(options);
+  }
+
   async rememberSpeedTest(result) {
     const record = checkedSpeedRecord({ ...result, regionId: this.resolvedRegion, measuredAt: this.now() }, this.account?.subscription, this.now());
     if (!record) throw new Error('INVALID_RESPONSE');
@@ -218,6 +226,10 @@ export class Controller {
   async connect({ signal, onProgress = async () => {}, preserveOnFailure = true } = {}) {
     throwIfCancelled(signal);
     const continuing = this.lease && this.lease.expiresAt > this.now() && this.status === 'connected';
+    // Account refresh briefly blocks before adopting a rotated token. Preserve
+    // the connection clock while its previous lease is still within deadline.
+    // An actual block/disconnect clears connectedAt; an expired lease restarts it.
+    const connectionStartedAt = this.active && this.lease?.expiresAt > this.now() ? this.connectedAt : null;
     const previousToken = this.account?.token;
     this.active = true;
     await this.local.set({ intentActive: true });
@@ -262,7 +274,7 @@ export class Controller {
         this.lease = lease;
         this.resolvedRegion = result.regionId;
         this.status = 'connected';
-        this.connectedAt = continuing && this.connectedAt ? this.connectedAt : this.now();
+        this.connectedAt = connectionStartedAt || this.now();
         this.lastError = null;
         await this.session.set({ lease, connectedAt: this.connectedAt, resolvedRegion: this.resolvedRegion });
         return this.publicState();

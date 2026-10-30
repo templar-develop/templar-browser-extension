@@ -24,7 +24,7 @@ export class BrowserApi {
 
   async request(path, { method = 'GET', token, body, signal, timeout = 10000 } = {}) {
     if (!this.base) throw new ApiError('SERVICE_NOT_CONFIGURED');
-    if (!/^\/(?:session|subscription|connect|disconnect|latency|auth\/(?:email|refresh|revoke|remember|telegram|telegram\/poll))$/.test(path)) throw new ApiError('INVALID_API_PATH');
+    if (!/^\/(?:session|subscription|connect|disconnect|latency|auth\/(?:refresh|revoke|remember|telegram|telegram\/poll|cabinet|cabinet\/poll|cabinet\/cancel))$/.test(path)) throw new ApiError('INVALID_API_PATH');
     throwIfCancelled(signal);
     let response;
     try {
@@ -37,11 +37,10 @@ export class BrowserApi {
       if (path === '/latency' && [404, 405, 501].includes(response.status)) throw new ApiError('LATENCY_UNAVAILABLE');
       let error;
       try { error = (await readJson(response)).error; } catch { /* Only bounded, known error codes may reach the UI. */ }
-      const known = { 401: ['INVALID_LOGIN'], 403: ['EMAIL_UNVERIFIED', 'SUBSCRIPTION_REQUIRED'], 409: ['DEVICE_LIMIT_REACHED'] };
+      const known = { 401: ['INVALID_LOGIN'], 403: ['EMAIL_UNVERIFIED', 'SUBSCRIPTION_REQUIRED', 'CABINET_DENIED'], 409: ['DEVICE_LIMIT_REACHED'], 410: ['CABINET_EXPIRED'] };
       if (known[response.status]?.includes(error)) throw new ApiError(error);
       if ([401, 403].includes(response.status)) throw new ApiError('ACCESS_DENIED');
       if (response.status === 429) throw new ApiError('RATE_LIMITED');
-      if (response.status === 422 && path === '/auth/email') throw new ApiError('INVALID_LOGIN');
       throw new ApiError('SERVICE_UNAVAILABLE');
     }
     try { return await readJson(response); } catch (error) { throwIfCancelled(signal); throw error; }
@@ -91,7 +90,9 @@ export function checkedSubscription(value, now = Date.now()) {
   const devices = value.devices;
   if (!Number.isSafeInteger(devices.used) || devices.used < 0 || !Number.isSafeInteger(devices.limit)
       || devices.limit < 1 || devices.used > devices.limit) throw new ApiError('INVALID_RESPONSE');
-  return { status: 'ACTIVE', expiresAt: value.expiresAt, regions,
+  const accountLabel = typeof value.accountLabel === 'string' && [...value.accountLabel].length <= 254
+    && value.accountLabel.trim() === value.accountLabel && !/[\u0000-\u001f\u007f-\u009f\u200e\u200f\u202a-\u202e\u2066-\u2069]/u.test(value.accountLabel) ? value.accountLabel || null : null;
+  return { status: 'ACTIVE', expiresAt: value.expiresAt, regions, accountLabel,
     trafficLimitBytes: value.trafficLimitBytes, trafficUsedBytes: value.trafficUsedBytes, devices: { used: devices.used, limit: devices.limit } };
 }
 

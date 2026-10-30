@@ -1,4 +1,4 @@
-# First-party browser API contract — 0.4.3 (local candidate)
+# First-party browser API contract — 0.4.7
 
 Base: https://cabinet.templarvpn.com/api/browser/v1. JSON only, no redirects,
 no cookies, bounded 4 KiB request / 128 KiB response. Timestamps are Unix ms.
@@ -10,7 +10,9 @@ the extension. Public region IDs and flags are discovered dynamically.
 | Method/path | Credentials/input | Result |
 | --- | --- | --- |
 | POST /session | {subscriptionUrl,deviceId} | Session |
-| POST /auth/email | {email,password,deviceId} | Session |
+| POST /auth/cabinet | {deviceId} | Public QR URL, confirmation code and private poll secret |
+| POST /auth/cabinet/poll | {code,pollToken,deviceId} | {pending:true} or Session |
+| POST /auth/cabinet/cancel | {code,pollToken,deviceId} | {} |
 | POST /auth/telegram | {deviceId} | {url,pollToken} for the owned bot |
 | POST /auth/telegram/poll | {pollToken,deviceId} | {pending:true} or Session |
 | POST /auth/remember | Bearer access, {deviceId} | Session; upgrade an existing login |
@@ -103,3 +105,22 @@ Primary API references checked 29 October 2026:
 - https://developer.chrome.com/docs/extensions/reference/api/proxy
 - https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/API/runtime/onStartup
 - https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/API/proxy/onRequest
+
+## Cabinet approval (0.4.7)
+
+Email/password entry happens in the cabinet only. Extension 0.4.7 has no
+password form or email-login command and rejects `/auth/email` before fetch.
+The server keeps that legacy endpoint for existing 0.4.6 installations.
+
+POST `/auth/cabinet` creates a five-minute request bound to the installation.
+The QR/link contains only the public request identifier in a URL fragment.
+The independent 256-bit poll secret stays in trusted extension session storage.
+POST `/auth/cabinet/poll` requires the identifier, secret and installation ID.
+An authenticated cabinet user must compare the displayed code and approve the
+request using the separate `/cabinet/browser-login` API. Approval/consumption
+are atomic in shared Redis, one-use and fail closed. Password/account identity
+changes or cabinet logout before redemption invalidate the pending approval.
+No cabinet JWT/cookie is handed to the extension. Normal browser session,
+refresh, subscription eligibility and device accounting remain authoritative.
+Popup closure retains the request; browser restart requires a new QR until
+sign-in finishes. After successful sign-in normal remembered-login applies.
