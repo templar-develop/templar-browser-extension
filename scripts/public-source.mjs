@@ -85,7 +85,7 @@ with zipfile.ZipFile(out,'w',compression=zipfile.ZIP_DEFLATED,compresslevel=9) a
   data=(root/row['path']).read_bytes()
   import hashlib
   if hashlib.sha256(data).hexdigest()!=row['sha256']: raise ValueError('SOURCE_CHANGED_DURING_EXPORT')
-  info=zipfile.ZipInfo(row['path'],${JSON.stringify(sourceTimestamp).replace('[', '(').replace(']', ')')});info.compress_type=zipfile.ZIP_DEFLATED;info.external_attr=0o100644<<16
+  info=zipfile.ZipInfo(row['path'],(${sourceTimestamp.join(', ')}));info.compress_type=zipfile.ZIP_DEFLATED;info.external_attr=0o100644<<16
   z.writestr(info,data,compresslevel=9)
 `, root, archive], { input: JSON.stringify(files), stdio: ['pipe', 'pipe', 'pipe'] });
   const archiveHash = sha256(await readFile(archive));
