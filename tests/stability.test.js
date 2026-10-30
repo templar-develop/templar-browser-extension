@@ -33,7 +33,7 @@ function fixture() {
   const api = { base: 'synthetic', async request(path, options = {}) {
     stats.calls[path] = (stats.calls[path] || 0) + 1;
     if (server.failure?.path === path) throw new Error(server.failure.code);
-    if (path === '/auth/refresh' || path === '/auth/email') return account();
+    if (path === '/auth/refresh' || path === '/session') return account();
     if (path === '/subscription') return structuredClone(subscription);
     if (path === '/connect') {
       const { region, rfServices } = options.body;
@@ -80,7 +80,7 @@ function invariant(f) {
 
 test('72-hour accelerated lifecycle: 8640 renewals, transient outages and repeated worker/browser restarts', async t => {
   const f = fixture();
-  await f.core.authenticate('/auth/email', {}); await f.core.select('ch-xhttp'); await f.core.connect();
+  await f.core.authenticate('/session', {}); await f.core.select('ch-xhttp'); await f.core.connect();
   let outages = 0, workerRestarts = 0, browserRestarts = 0;
   for (let i = 1; i <= 8640; i++) {
     f.clock.value += 30_000;
@@ -117,7 +117,7 @@ test('2048 seeded user actions preserve routing, cancellation boundaries and bou
   const counts = Array(10).fill(0);
   for (let seed = 1; seed <= 16; seed++) {
     const f = fixture(); let random = seed;
-    await f.core.authenticate('/auth/email', {}); await f.core.select('ch');
+    await f.core.authenticate('/session', {}); await f.core.select('ch');
     for (let step = 0; step < 128; step++) {
       random = (Math.imul(random, 1664525) + 1013904223) >>> 0;
       const action = random % 10; counts[action]++;
@@ -136,7 +136,7 @@ test('2048 seeded user actions preserve routing, cancellation boundaries and bou
           f.core = f.make(); await f.core.init();
           await f.core.refresh(); break;
         case 8:
-          await f.core.logout(); await f.core.authenticate('/auth/email', {}); break;
+          await f.core.logout(); await f.core.authenticate('/session', {}); break;
         case 9:
           f.server.malformed = true;
           await assert.rejects(f.core.connect(), /INVALID_REGION/);
@@ -154,7 +154,7 @@ test('2048 seeded user actions preserve routing, cancellation boundaries and bou
 test('early refresh denial or malformed rotation still blocks a valid old lease and never extends credentials', async () => {
   for (const code of ['ACCESS_DENIED', 'DEVICE_LIMIT_REACHED', 'INVALID_RESPONSE']) {
     const f = fixture();
-    await f.core.authenticate('/auth/email', {}); await f.core.select('ch'); await f.core.connect();
+    await f.core.authenticate('/session', {}); await f.core.select('ch'); await f.core.connect();
     f.core.account.sessionExpiresAt = f.core.lease.expiresAt;
     f.clock.value = f.core.lease.expiresAt - 45_000;
     f.server.failure = { path: '/auth/refresh', code };
@@ -163,4 +163,21 @@ test('early refresh denial or malformed rotation still blocks a valid old lease 
     assert.equal(f.core.lease, null); invariant(f);
     if (code !== 'INVALID_RESPONSE') assert.equal(f.local.data.login, undefined);
   }
+});
+
+test('access-token rotation and worker restart keep the continuous one-hour connection clock', async () => {
+  const f = fixture();
+  await f.core.acceptSession(await f.api.request('/session'));
+  await f.core.select('ch-xhttp'); await f.core.connect(); const started = f.core.connectedAt;
+  for (let i = 1; i <= 125; i++) {
+    f.clock.value += 30000; await f.core.refresh();
+    if (i === 70) { f.core = f.make(); await f.core.init(); }
+    assert.equal(f.core.connectedAt, started, 'routine token rotation must not restart the clock');
+  }
+  assert.ok(f.stats.rotations >= 5);
+  const { connectionElapsed } = await import('../runtime/auth-view.js');
+  assert.equal(connectionElapsed(f.core.publicState().connectedAt, f.clock.value), '1:02:30');
+  await f.core.block(); assert.equal(f.core.publicState().connectedAt, null);
+  f.clock.value += 1000; await f.core.refresh();
+  assert.equal(f.core.publicState().connectedAt, f.clock.value, 'recovery after an actual block starts a new session');
 });

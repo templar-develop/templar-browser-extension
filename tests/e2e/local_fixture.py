@@ -135,7 +135,7 @@ class Fixture:
                     if fixture.revoked or body.get('refreshToken') != fixture.refresh:
                         return self.reply({}, 403)
                     return self.reply(fixture.account())
-                if path in ['/auth/email', '/session'] and self.command == 'POST':
+                if path == '/session' and self.command == 'POST':
                     fixture.revoked = False
                     return self.reply(fixture.account())
                 if self.headers.get('Authorization') != 'Bearer ' + fixture.access:

@@ -1,17 +1,18 @@
 import { flagMarkup } from '../flags.js';
 import { measurementStatus, pingMarkup } from './measurement-ui.js';
 import { diagnosticReport } from './diagnostics.js';
-import { resumedAuthView } from './auth-view.js';
+import { resumedAuthView, loginCountdown, authCompleted, connectionElapsed } from './auth-view.js';
 import { BUILD_VERSION, SOURCE_CODE_URL } from './config.js';
 import { readPreferences, savePreferences, addDomain, escapeHTML } from '../preferences.js';
 import { renderSettings, SETTINGS_VIEWS, renderRfServicesQuestion } from '../settings-ui.js';
 import { startLocalization, setLocale, getLocale } from '../i18n.js';
-import { renderSpeedTest, speedTestShortcut } from '../speedtest-ui.js';
+import { renderSpeedTest, updateSpeedTest, speedTestShortcut } from '../speedtest-ui.js';
 import { animateScreen } from '../motion.js';
 import { AUTO_PROFILE, protocolLabel, transportLabel } from '../profiles.js';
 import { startStarfield } from '../starfield.js';
 import { renderAuthChoice } from '../onboarding-ui.js';
 import { safeFragment } from './safe-dom.js';
+import { qrMarkup } from './qr-code.js';
 
 startStarfield(document.querySelector('#stars'));
 
@@ -28,7 +29,9 @@ const storage = (() => {
 let preferences = readPreferences(storage);
 let state = { status: 'disconnected', subscription: null, selectedRegion: 'auto', active: false, serviceConfigured: false };
 let view;
-let auth = 'link';
+let auth = 'cabinet';
+let cabinetTimer;
+let cabinetPollBusy = false;
 let busy = false;
 let actionSequence = 0;
 let telegramPending = false;
@@ -55,11 +58,15 @@ const messages = {
   EMAIL_UNVERIFIED: 'Сначала подтвердите email в личном кабинете.',
   DEVICE_LIMIT_REACHED: 'Достигнут лимит устройств. Удалите ненужное устройство в личном кабинете и повторите вход.',
   SUBSCRIPTION_REQUIRED: 'Не удалось выбрать активную подписку. Войдите по её ссылке из личного кабинета.',
+  CABINET_EXPIRED: 'Время входа истекло. Создайте новый QR-код.',
+  CABINET_DENIED: 'Подключение отклонено в кабинете. Можно начать заново.',
   TELEGRAM_EXPIRED: 'Время входа через Telegram истекло. Откройте бота заново.',
   MEASUREMENT_CANCELLED: '',
   MEASUREMENT_BUSY: 'Проверка уже выполняется. Дождитесь завершения или остановите её.',
   MEASUREMENT_TOO_SHORT: 'Замер слишком короткий. Повторите проверку.',
   INVALID_RULES: 'Проверьте правила доменов.',
+  SPEEDTEST_ROUTE_EXCLUDED: 'Для проверки добавьте speed.cloudflare.com в VPN-маршрут в настройках маршрутизации.',
+  SPEEDTEST_UNAVAILABLE: 'Сервер проверки скорости недоступен. Попробуйте ещё раз или выберите другую локацию.',
   PROXY_CONFLICT: 'Настройки подключения заняты другим расширением или политикой браузера.',
 };
 
@@ -80,10 +87,11 @@ async function send(type, data = {}) {
 }
 
 async function act(type, data = {}) {
+  const originView = view;
   if ((busy || state.measurement) && !['DISCONNECT', 'LOGOUT'].includes(type)) return;
   const action = ++actionSequence;
   busy = true; lastMessage = ''; render();
-  try { await send(type, data); view = (['IMPORT', 'LOGIN_EMAIL'].includes(type) && (firstRun || preferences.rfServices === null)) ? 'rf-question' : 'home'; }
+  try { await send(type, data); if (action === actionSequence && view === originView && type !== 'REFRESH') view = (type === 'IMPORT' && (firstRun || preferences.rfServices === null)) ? 'rf-question' : 'home'; }
   catch (error) { lastMessage = error.message; }
   finally { if (action === actionSequence) busy = false; render(); }
 }
@@ -100,12 +108,8 @@ function headerText() {
 
 function connectionDuration() {
   const prefix = getLocale() === 'en' ? 'Connected' : 'Подключено';
-  if (!state.connectedAt) return prefix;
-  const seconds = Math.max(0, Math.floor((Date.now() - state.connectedAt) / 1000));
-  const hours = Math.floor(seconds / 3600);
-  const minutes = Math.floor((seconds % 3600) / 60);
-  const rest = seconds % 60;
-  return `${prefix} · ${hours ? `${hours}:` : ''}${String(minutes).padStart(2, '0')}:${String(rest).padStart(2, '0')}`;
+  const elapsed = connectionElapsed(state.connectedAt);
+  return elapsed === null ? prefix : `${prefix} · ${elapsed}`;
 }
 
 function home() {
@@ -119,16 +123,23 @@ function home() {
     <h2 class="hero-title">${connecting ? 'Подключаем…' : headerText()}</h2><p class="hero-subtitle"><span data-connection-time>${connected ? connectionDuration() : state.active ? 'Подключение требует восстановления' : 'Остальные приложения — без изменений'}</span></p></div>
     ${state.status === 'blocked' ? `<div class="recovery-actions"><button class="primary-button" data-command="REFRESH" data-recover-connection ${busy ? 'disabled' : ''}>${icon('refresh')} Восстановить</button><button class="outline-button" data-command="DISCONNECT" data-release-connection>Отключить VPN</button></div>` : ''}
     <div class="location-block"><p class="label-uppercase">ЛОКАЦИЯ</p><button class="location-card" data-view="locations"><img class="flag" src="./assets/emoji/${region?.flag || 'eu'}.svg" alt=""><span class="location-copy"><strong>${escapeHTML(regionName())}</strong><small>${state.selectedRegion === 'auto' ? 'Выбирает самый быстрый сервер' : `${loadBadge}${protocolLabel(region)}`}</small></span>${pingMarkup(state.resolvedRegion || state.selectedRegion, state.latencies, state.measurement)}${icon('chevron')}</button></div>
-    ${speedTestShortcut()}<div class="subscription-card"><div class="subscription-top"><span>Подписка</span><strong>до ${expires}</strong></div><div class="traffic-row"><span>${state.subscription.trafficLimitBytes === null ? 'Трафик безлимитный' : `${Math.round(state.subscription.trafficUsedBytes / 1048576)} / ${Math.round(state.subscription.trafficLimitBytes / 1048576)} MiB`}</span><span>${state.subscription.devices.used} / ${state.subscription.devices.limit} устройств</span></div><a class="device-buy-link" href="https://cabinet.templarvpn.com/subscriptions" target="_blank" rel="noopener noreferrer">Докупить устройства ${icon('arrow')}</a></div>
-    <div class="bottom-actions account-actions"><button class="text-button" data-command="REFRESH">${icon('refresh')} Обновить подписку</button><button class="text-button" data-view="replace">${icon('link')} Заменить ссылку</button><button class="text-button" data-command="LOGOUT">${icon('logout')} Выйти</button></div>`;
+    ${speedTestShortcut()}<div class="subscription-card"><div class="subscription-top"><span>Подписка</span><strong>до ${expires}</strong></div><div class="traffic-row">${state.subscription.accountLabel ? `<span class="subscription-identity" dir="auto" translate="no" title="${escapeHTML(state.subscription.accountLabel)}">${escapeHTML(state.subscription.accountLabel)}</span>` : ''}${state.subscription.trafficLimitBytes === null ? '' : `<span>${Math.round(state.subscription.trafficUsedBytes / 1048576)} / ${Math.round(state.subscription.trafficLimitBytes / 1048576)} MiB</span>`}<span>${state.subscription.devices.used} / ${state.subscription.devices.limit} устройств</span></div></div>`;
+}
+
+function cabinetSignIn(disabled) {
+  const c = state.cabinetLogin;
+  const countdown = loginCountdown(c?.expiresAt);
+  if (!c || countdown.expired) return `<p class="field-help">${c ? messages.CABINET_EXPIRED : 'Подтвердите вход на сайте или с телефона. Копировать ссылку подписки не нужно.'}</p><button class="primary-button" data-command="CABINET_START" ${disabled}>${c ? 'Создать новый QR-код' : 'Войти через кабинет'}</button>`;
+  const code = c.confirmationCode.slice(0, 4) + ' ' + c.confirmationCode.slice(4);
+  return `<div class="cabinet-login"><div class="login-qr">${qrMarkup(c.url)}</div><p class="login-code">${escapeHTML(code)}</p><p class="field-help">Сканируйте QR или откройте кабинет. Сверьте код и подтвердите подключение.</p><button class="primary-button" data-command="CABINET_OPEN" ${disabled}>Открыть кабинет</button><div class="login-actions"><button class="text-button" data-copy-login>Скопировать ссылку</button><button class="text-button" data-command="CABINET_CANCEL">Отмена</button></div><p class="field-help login-expiry"><span>Код действует ещё</span> <time data-login-countdown role="timer" aria-live="off">${countdown.text}</time><span> · Ожидаем подтверждения…</span></p></div>`;
 }
 
 function signIn() {
   const disabled = busy || !state.serviceConfigured ? 'disabled' : '';
-  return `<section class="onboarding">${state.loginRecoverable ? `<button class="primary-button field-gap" data-command="REFRESH" ${state.measurement ? 'disabled' : ''}>${state.measurement ? 'Восстанавливаем вход…' : 'Восстановить сохранённый вход'}</button>` : ''}${state.active ? '<button class="text-button" data-command="DISCONNECT">Отключить VPN</button>' : ''}<div class="auth-tabs" role="tablist" aria-label="Способ входа">${[['link', 'По ссылке'], ['email', 'Личный кабинет'], ['telegram', 'Telegram']].map(([id, label]) => `<button data-auth="${id}" role="tab" aria-selected="${auth === id}">${label}</button>`).join('')}</div>
-    <h2>${auth === 'email' ? 'Войдите в кабинет.' : auth === 'telegram' ? 'Вход через Telegram.' : view === 'replace' ? 'Заменить ссылку' : 'Добавить подписку'}</h2>
+  return `<section class="onboarding">${state.loginRecoverable ? `<button class="primary-button field-gap" data-command="REFRESH" ${state.measurement ? 'disabled' : ''}>${state.measurement ? 'Восстанавливаем вход…' : 'Восстановить сохранённый вход'}</button>` : ''}${state.active ? '<button class="text-button" data-command="DISCONNECT">Отключить VPN</button>' : ''}<div class="auth-tabs" role="tablist" aria-label="Способ входа">${[['cabinet', 'Кабинет / QR'], ['link', 'По ссылке'], ['telegram', 'Telegram']].map(([id, label]) => `<button data-auth="${id}" role="tab" aria-selected="${auth === id}">${label}</button>`).join('')}</div>
+    <h2>${auth === 'cabinet' ? 'Вход через кабинет.' : auth === 'telegram' ? 'Вход через Telegram.' : view === 'replace' ? 'Заменить ссылку' : 'Добавить подписку'}</h2>
     ${!state.serviceConfigured ? `<p class="error-notice">${messages.SERVICE_NOT_CONFIGURED}</p>` : ''}
-    ${auth === 'link' ? `<form id="link-form"><label class="input-label" for="real-link">Ссылка подписки</label><input id="real-link" name="link" type="text" inputmode="url" spellcheck="false" autocomplete="off" placeholder="https://sub.templarvpn.com/connect/…" ${disabled}><button class="primary-button field-gap" type="submit" ${disabled}>${view === 'replace' ? 'Заменить ссылку' : 'Добавить подписку'}</button></form>` : auth === 'email' ? `<form id="email-form" autocomplete="off"><label class="input-label" for="real-email">Email</label><input id="real-email" name="email" type="email" autocomplete="off" ${disabled}><label class="input-label field-gap" for="real-password">Пароль</label><input id="real-password" name="password" type="password" autocomplete="off" ${disabled}><button class="primary-button field-gap" type="submit" ${disabled}>Войти</button></form>` : `<button class="primary-button" data-command="TELEGRAM_START" ${disabled}>${icon('telegram')} Войти через Telegram</button>${telegramPending ? '<p class="field-help">Ожидаем подтверждения входа.</p>' : ''}`}
+    ${auth === 'cabinet' ? cabinetSignIn(disabled) : auth === 'link' ? `<form id="link-form"><label class="input-label" for="real-link">Ссылка подписки</label><input id="real-link" name="link" type="text" inputmode="url" spellcheck="false" autocomplete="off" placeholder="https://sub.templarvpn.com/connect/…" ${disabled}><button class="primary-button field-gap" type="submit" ${disabled}>${view === 'replace' ? 'Заменить ссылку' : 'Добавить подписку'}</button></form>` : `<button class="primary-button" data-command="TELEGRAM_START" ${disabled}>${icon('telegram')} Войти через Telegram</button>${telegramPending ? '<p class="field-help">Ожидаем подтверждения входа.</p>' : ''}`}
     ${view === 'replace' ? '<button class="demo-example" data-view="home">Отмена</button>' : ''}</section>`;
 }
 
@@ -143,16 +154,18 @@ function firstRunView() {
 function locations() {
   const measuring = busy || Boolean(state.measurement);
   const badge = region => region.load ? `<span class="load-dot ${region.load}" aria-label="${region.load === 'high' ? 'Высокая' : region.load === 'medium' ? 'Средняя' : 'Низкая'} нагрузка"></span>` : '';
-  return `<section class="location-view"><button class="back-button" data-view="home">${icon('chevron')} Назад</button><h2>Ваша точка подключения.</h2><button class="primary-button" ${state.measurement?.kind === 'ping' ? 'data-measurement-cancel' : `data-ping-refresh ${measuring ? 'disabled' : ''}`}>${state.measurement?.kind === 'ping' ? 'Остановить проверку' : 'Обновить пинг'}</button><p class="field-help">Задержка HTTPS до www.gstatic.com через каждую локацию. Проверка идёт параллельно и не прерывает VPN.</p><div class="region-list" role="radiogroup" aria-label="Локации">${[AUTO_PROFILE, ...state.subscription.regions].map(region => `<button class="region-option" role="radio" aria-checked="${state.selectedRegion === region.id}" aria-label="${escapeHTML(region.name)}, ${transportLabel(region)}" data-region="${escapeHTML(region.id)}">${flagMarkup(region.flag)}<span class="location-copy"><strong>${escapeHTML(region.name)}</strong><small>${region.id === 'auto' ? 'Выбирает самый быстрый сервер' : `${badge(region)}${protocolLabel(region)}`}</small></span>${region.id !== 'auto' ? pingMarkup(region.id, state.latencies, state.measurement) : ''}${state.selectedRegion === region.id ? icon('check') : ''}</button>`).join('')}</div></section>`;
+  return `<section class="location-view"><button class="back-button" data-view="home">${icon('chevron')} Назад</button><h2>Ваша точка подключения.</h2><div class="location-actions"><button class="outline-button" data-command="REFRESH" ${measuring ? 'disabled' : ''}>${icon('refresh')} Обновить подписку</button><button class="outline-button" ${state.measurement?.kind === 'ping' ? 'data-measurement-cancel' : `data-ping-refresh ${measuring ? 'disabled' : ''}`}>${icon(state.measurement?.kind === 'ping' ? 'close' : 'latency')}${state.measurement?.kind === 'ping' ? 'Остановить проверку' : 'Обновить пинг'}</button></div><p class="field-help">Задержка HTTPS до www.gstatic.com через каждую локацию. Проверка идёт параллельно и не прерывает VPN.</p><div class="region-list" role="radiogroup" aria-label="Локации">${[AUTO_PROFILE, ...state.subscription.regions].map(region => `<button class="region-option" role="radio" aria-checked="${state.selectedRegion === region.id}" aria-label="${escapeHTML(region.name)}, ${transportLabel(region)}" data-region="${escapeHTML(region.id)}">${flagMarkup(region.flag)}<span class="location-copy"><strong>${escapeHTML(region.name)}</strong><small>${region.id === 'auto' ? 'Выбирает самый быстрый сервер' : `${badge(region)}${protocolLabel(region)}`}</small></span>${region.id !== 'auto' ? pingMarkup(region.id, state.latencies, state.measurement) : ''}${state.selectedRegion === region.id ? icon('check') : ''}</button>`).join('')}</div></section>`;
 }
 
 function render() {
+  const logout = document.querySelector('#logout-button');
+  logout.hidden = !state.subscription;
   const region = state.subscription?.regions.find(region => region.id === state.selectedRegion);
   const measuring = Boolean(state.measurement);
   const intro = firstRun && ['welcome', 'setup', 'auth-choice', 'rf-question'].includes(view) ? firstRunView() : null;
   screen.classList.toggle('home-view', !intro && view === 'home' && Boolean(state.subscription));
-  screen.replaceChildren(safeFragment(intro || (view === 'speedtest' ? renderSpeedTest({ region: regionName(), flag: region?.flag || 'eu', runtime: true, result: speedResult, connected: state.status === 'connected', busy: busy || measuring }) : SETTINGS_VIEWS.includes(view) ? renderSettings(view, preferences, { runtime: true, version: BUILD_VERSION, sourceUrl: SOURCE_CODE_URL }) : view === 'locations' && state.subscription ? locations() : !state.subscription || view === 'replace' ? signIn() : home())));
-  if (measuring) screen.prepend(safeFragment(measurementStatus(state.measurement, { active: state.active, locale: getLocale() })));
+  screen.replaceChildren(safeFragment(intro || (view === 'speedtest' ? renderSpeedTest({ region: regionName(), flag: region?.flag || 'eu', runtime: true, result: speedResult, connected: state.status === 'connected', busy: busy || measuring, job: state.measurement }) : SETTINGS_VIEWS.includes(view) ? renderSettings(view, preferences, { runtime: true, version: BUILD_VERSION, sourceUrl: SOURCE_CODE_URL, signedIn: Boolean(state.subscription) }) : view === 'locations' && state.subscription ? locations() : !state.subscription || view === 'replace' ? signIn() : home())));
+  if (measuring && view !== 'speedtest') screen.prepend(safeFragment(measurementStatus(state.measurement, { active: state.active, locale: getLocale() })));
   if (view === 'about') {
     screen.append(safeFragment(`<button class="outline-button" data-diagnostics>Показать диагностику</button>${showDiagnostics ? '<textarea class="diagnostic-report" readonly aria-label="Диагностика подключения"></textarea>' : ''}`));
     const report = screen.querySelector('.diagnostic-report');
@@ -185,11 +198,6 @@ screen.addEventListener('submit', event => {
   event.preventDefault();
   const data = new FormData(event.target);
   if (event.target.id === 'link-form') act('IMPORT', { link: String(data.get('link') || '') });
-  if (event.target.id === 'email-form') {
-    const password = String(data.get('password') || '');
-    event.target.reset();
-    act('LOGIN_EMAIL', { email: String(data.get('email') || ''), password });
-  }
   if (event.target.id === 'routing-form') {
     try { rules(addDomain(preferences, data.get('domain') || '').routing); }
     catch (error) { lastMessage = error.message === 'DUPLICATE_DOMAIN' ? 'Этот домен уже есть в списке.' : 'Введите домен, например example.com, без протокола и пути.'; render(); }
@@ -199,11 +207,17 @@ screen.addEventListener('submit', event => {
 screen.addEventListener('click', async event => {
   const button = event.target.closest('button');
   if (!button || button.disabled) return;
+  if (button.hasAttribute('data-copy-login')) {
+    try { if (state.cabinetLogin) await navigator.clipboard.writeText(state.cabinetLogin.url); }
+    catch { lastMessage = 'Не удалось скопировать ссылку. Используйте QR-код или кнопку входа.'; render(); }
+    return;
+  }
   if (button.hasAttribute('data-diagnostics')) { showDiagnostics = true; render(); screen.querySelector('.diagnostic-report')?.select(); return; }
   if (button.hasAttribute('data-measurement-cancel')) {
     try { await send('CANCEL_MEASUREMENT'); } catch (error) { lastMessage = error.message; }
     render(); return;
   }
+  if (button.dataset.settingsView || button.dataset.view) { view = button.dataset.settingsView || button.dataset.view; auth = 'cabinet'; lastMessage = ''; render(); screen.scrollTop = 0; return; }
   const interrupt = ['DISCONNECT', 'LOGOUT'].includes(button.dataset.command) && state.measurement;
   if ((busy || state.measurement) && !interrupt) return;
   if (button.hasAttribute('data-ping-refresh')) {
@@ -235,12 +249,16 @@ screen.addEventListener('click', async event => {
     view = 'home'; render(); return;
   }
   const authChoice = event.target.closest('[data-auth-choice]');
-  if (authChoice) { auth = authChoice.dataset.authChoice; view = 'home'; render(); screen.querySelector('input, [data-command="TELEGRAM_START"]')?.focus(); return; }
+  if (authChoice) { auth = authChoice.dataset.authChoice; view = 'home'; render(); screen.querySelector('input, [data-command="CABINET_START"], [data-command="TELEGRAM_START"]')?.focus(); return; }
   if (button.dataset.firstRun) { view = button.dataset.firstRun; render(); return; }
-  if (button.dataset.settingsView || button.dataset.view) { view = button.dataset.settingsView || button.dataset.view; auth = 'link'; lastMessage = ''; render(); screen.scrollTop = 0; }
+
   if (button.dataset.auth) { auth = button.dataset.auth; render(); }
   if (button.dataset.region) await act('SELECT', { region: button.dataset.region });
-  if (button.dataset.command === 'TELEGRAM_START') {
+  if (button.dataset.command?.startsWith('CABINET_')) {
+    try { busy = true; lastMessage = ''; render(); await send(button.dataset.command); resumeCabinet(); }
+    catch (error) { lastMessage = error.message; }
+    finally { busy = false; render(); }
+  } else if (button.dataset.command === 'TELEGRAM_START') {
     try {
       busy = true; render();
       await send('TELEGRAM_START'); resumeTelegram();
@@ -261,6 +279,28 @@ screen.addEventListener('click', async event => {
     setLocale(preferences.locale); render();
   }
 });
+
+function resumeCabinet() {
+  clearInterval(cabinetTimer);
+  if (!state.cabinetLogin) return;
+  auth = 'cabinet'; view = 'home';
+  const poll = async () => {
+    if (cabinetPollBusy || !state.cabinetLogin) return;
+    cabinetPollBusy = true;
+    try {
+      await send('CABINET_POLL');
+      if (!state.cabinetLogin) {
+        clearInterval(cabinetTimer); lastMessage = '';
+        if (state.subscription) view = firstRun || preferences.rfServices === null ? 'rf-question' : 'home';
+      }
+    } catch (error) {
+      lastMessage = error.message;
+      if (!state.cabinetLogin) clearInterval(cabinetTimer);
+    } finally { cabinetPollBusy = false; render(); }
+  };
+  cabinetTimer = setInterval(poll, 5000);
+  poll();
+}
 
 function resumeTelegram() {
   clearInterval(telegramTimer);
@@ -284,9 +324,16 @@ function resumeTelegram() {
   poll();
 }
 
+document.querySelector('#logout-button').addEventListener('click', () => { if (state.subscription) void act('LOGOUT'); });
 document.querySelector('#settings-button').addEventListener('click', () => { view = 'settings'; render(); screen.scrollTop = 0; });
 document.querySelector('#about-button').addEventListener('click', () => { view = 'about'; render(); screen.scrollTop = 0; });
 const connectionTimer = setInterval(() => {
+  const countdownTarget = screen.querySelector('[data-login-countdown]');
+  if (countdownTarget && state.cabinetLogin) {
+    const countdown = loginCountdown(state.cabinetLogin.expiresAt);
+    countdownTarget.textContent = countdown.text;
+    if (countdown.expired) render();
+  }
   if (state.status !== 'connected') return;
   if (state.leaseExpiresAt && state.leaseExpiresAt <= Date.now()) {
     state = { ...state, status: 'blocked' };
@@ -296,14 +343,20 @@ const connectionTimer = setInterval(() => {
   const target = screen.querySelector('[data-connection-time]');
   if (target) target.textContent = connectionDuration();
 }, 1000);
-window.addEventListener('pagehide', () => { clearInterval(telegramTimer); clearInterval(connectionTimer); });
+window.addEventListener('pagehide', () => { clearInterval(telegramTimer); clearInterval(cabinetTimer); clearInterval(connectionTimer); });
 startLocalization(preferences.locale);
 if (nativeExtension) api.runtime.onMessage.addListener((message, sender) => {
   if (sender.id !== api.runtime.id || message?.type !== 'STATE_UPDATED') return;
   const wasMeasuring = Boolean(state.measurement);
+  const completedLogin = authCompleted(state, message.state);
+  const speedProgress = view === 'speedtest' && state.measurement?.kind === 'speedtest' && message.state?.measurement?.kind === 'speedtest';
   acceptState(message.state);
+  if (speedProgress) { updateSpeedTest(screen.querySelector('.speedtest-view'), { job: state.measurement, busy: true, connected: state.status === 'connected' }); return; }
   if (!busy || wasMeasuring || state.measurement) {
-    if (state.subscription && telegramPending === false && auth === 'telegram') {
+    if (completedLogin && !state.cabinetLogin && auth === 'cabinet') {
+      clearInterval(cabinetTimer); view = firstRun || preferences.rfServices === null ? 'rf-question' : 'home';
+    }
+    if (completedLogin && telegramPending === false && auth === 'telegram') {
       clearInterval(telegramTimer); view = firstRun || preferences.rfServices === null ? 'rf-question' : 'home';
     }
     render();
@@ -312,6 +365,7 @@ if (nativeExtension) api.runtime.onMessage.addListener((message, sender) => {
 if (nativeExtension) send('GET_STATE').then(() => {
   const resumed = resumedAuthView(state, { firstRun, rfServices: preferences.rfServices });
   if (resumed) { view = resumed.view; if (resumed.auth) auth = resumed.auth; }
-  resumeTelegram(); render();
+  if (state.subscription && state.measurement?.kind === 'speedtest') view = 'speedtest';
+  resumeTelegram(); resumeCabinet(); render();
 }).catch(error => { lastMessage = error.message; render(); });
 else { lastMessage = 'Откройте эту сборку как расширение. Настройки браузера не изменены.'; render(); }

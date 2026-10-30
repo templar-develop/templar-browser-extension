@@ -1,4 +1,4 @@
-import { DEMO_LINK, DEMO_LOGIN, DEMO_AUTO_REGION, DEMO_LATENCY_MS, REGIONS, SCENARIOS, createState, demoSubscription, readPreference, savePreference, validateSubscriptionLink } from './demo-state.js';
+import { DEMO_LINK, DEMO_AUTO_REGION, DEMO_LATENCY_MS, REGIONS, SCENARIOS, createState, demoSubscription, readPreference, savePreference, validateSubscriptionLink } from './demo-state.js';
 import { ROUTING_MODES, readPreferences, savePreferences, addDomain } from './preferences.js';
 import { SETTINGS_VIEWS, renderSettings, renderRfServicesQuestion } from './settings-ui.js';
 import { getLocale, setLocale, startLocalization } from './i18n.js';
@@ -7,6 +7,7 @@ import { animateScreen } from './motion.js';
 import { protocolLabel, transportLabel } from './profiles.js';
 import { startStarfield } from './starfield.js';
 import { renderAuthChoice } from './onboarding-ui.js';
+import { connectionElapsed } from './runtime/auth-view.js';
 
 startStarfield(document.querySelector('#stars'));
 
@@ -54,12 +55,8 @@ function date(value) {
 
 function connectionDuration() {
   const prefix = getLocale() === 'en' ? 'Connected' : 'Подключено';
-  if (!state.connectedAt) return prefix;
-  const seconds = Math.max(0, Math.floor((Date.now() - state.connectedAt) / 1000));
-  const hours = Math.floor(seconds / 3600);
-  const minutes = Math.floor((seconds % 3600) / 60);
-  const rest = seconds % 60;
-  return `${prefix} · ${hours ? `${hours}:` : ''}${String(minutes).padStart(2, '0')}:${String(rest).padStart(2, '0')}`;
+  const elapsed = connectionElapsed(state.connectedAt);
+  return elapsed === null ? prefix : `${prefix} · ${elapsed}`;
 }
 
 function regionCard() {
@@ -75,17 +72,10 @@ function regionCard() {
 
 function subscriptionCard() {
   return `<div class="subscription-card"><div class="subscription-top"><span class="plan-badge">${icon('shield')} ${state.subscription.plan}</span><strong>до ${date(state.subscription.expiresAt)}</strong></div>
-    <div class="traffic-row"><span>Трафик безлимитный</span><span>${state.subscription.devices.used} / ${state.subscription.devices.limit} устройств</span></div><a class="device-buy-link" href="https://cabinet.templarvpn.com/subscriptions" target="_blank" rel="noopener noreferrer">Докупить устройства ${icon('arrow')}</a></div>
-    ${accountActions(true)}`;
+    <div class="traffic-row"><span class="subscription-identity" translate="no">@templar_demo</span><span>${state.subscription.devices.used} / ${state.subscription.devices.limit} устройств</span></div></div>`;
 }
 
-function accountActions(includeRefresh = false) {
-  return `<div class="bottom-actions account-actions">
-    ${includeRefresh ? `<button class="text-button" data-action="refresh" ${state.refreshing || state.busy ? 'disabled' : ''}>${state.refreshing ? '<span class="spinner" aria-hidden="true"></span>' : icon('refresh')} ${state.refreshing ? 'Обновляем…' : 'Обновить подписку'}</button>` : ''}
-    <button class="text-button" data-action="replace-link" ${state.busy || state.refreshing ? 'disabled' : ''}>${icon('link')} Заменить ссылку</button>
-    <button class="text-button secondary" data-action="remove">${icon('logout')} Выйти</button>
-  </div>`;
-}
+function accountActions() { return ''; }
 
 function loadBadge(load) {
   if (!load) return '';
@@ -120,7 +110,7 @@ function home() {
 
 function onboarding() {
   const title = state.authMethod === 'cabinet' ? 'Войдите в кабинет.' : state.authMethod === 'telegram' ? 'Вход через Telegram.' : 'Всё начинается<br>с вашей подписки.';
-  const intro = state.authMethod === 'cabinet' ? 'Email и пароль от вашего личного кабинета.<br>В макете используйте только демоданные.' : state.authMethod === 'telegram' ? 'Подписка из Telegram появится здесь<br>после подтверждения входа.' : 'Добавьте ссылку Templar VPN.<br>Ту же, которой пользуетесь в Happ.';
+  const intro = state.authMethod === 'cabinet' ? 'Подтвердите вход в личном кабинете.<br>В макете показан только пример подключения.' : state.authMethod === 'telegram' ? 'Подписка из Telegram появится здесь<br>после подтверждения входа.' : 'Добавьте ссылку Templar VPN.<br>Ту же, которой пользуетесь в Happ.';
   const content = state.authMethod === 'cabinet' ? cabinetForm() : state.authMethod === 'telegram' ? telegramForm() : linkForm();
   return `<section class="onboarding auth-${state.authMethod}"><button class="back-button" data-action="auth-choice">${icon('chevron')} Способы входа</button><div id="auth-content">
     <div class="onboarding-emblem">${icon(state.authMethod === 'cabinet' ? 'user' : state.authMethod === 'telegram' ? 'telegram' : 'link')}</div>
@@ -139,13 +129,9 @@ function linkForm() {
 }
 
 function cabinetForm() {
-  return `<form id="cabinet-form" autocomplete="off" novalidate>
-    <label class="input-label" for="cabinet-email">Email</label><input id="cabinet-email" name="email" type="email" autocomplete="off" spellcheck="false" placeholder="demo@templarvpn.test" aria-describedby="cabinet-help" ${state.busy ? 'disabled' : ''}>
-    <label class="input-label field-gap" for="cabinet-password">Пароль</label><input id="cabinet-password" name="password" type="password" autocomplete="off" placeholder="Пароль от кабинета" aria-describedby="cabinet-help" ${state.busy ? 'disabled' : ''}>
-    <div class="demo-credentials">Для макета: <code>demo@templarvpn.test</code><br>Пароль: <code>demo-templar</code></div>
-    <p class="field-help" id="cabinet-help" aria-live="polite">Настоящие логин и пароль здесь не нужны.</p>
-    <button class="primary-button" type="submit" ${state.busy ? 'disabled' : ''}>${state.busy ? 'Входим в демо…' : `Войти ${icon('arrow')}`}</button>
-    </form><button class="demo-example" data-action="cabinet-example" ${state.busy ? 'disabled' : ''}>Войти с демоаккаунтом ${icon('arrow')}</button>`;
+  return `<div class="demo-credentials">В рабочем расширении появится QR-код и кнопка «Открыть кабинет». Войдите на сайте и подтвердите подключение, сверив код.</div>
+    <button class="primary-button" data-action="cabinet-example" ${state.busy ? 'disabled' : ''}>${state.busy ? 'Входим в демо…' : 'Показать результат входа'}</button>
+    <p class="field-help">Это демонстрация. Настоящий кабинет не открывается.</p>`;
 }
 
 function telegramForm() {
@@ -162,7 +148,7 @@ function telegramForm() {
 function locations() {
   return `<section class="location-view" aria-labelledby="locations-title"><button class="back-button" data-action="back">${icon('chevron')} Назад</button>
     <h2 id="locations-title">Ваша точка подключения.</h2><p>Выберите страну или доверьтесь автовыбору.<br>В макете все подключения тестовые.</p>
-    <div class="ping-toolbar"><span>ЗАДЕРЖКА В ДЕМО</span><button class="text-button" data-action="refresh-ping" ${state.pingBusy ? 'disabled' : ''}>${state.pingBusy ? '<span class="spinner" aria-hidden="true"></span>' : icon('refresh')} ${state.pingBusy ? 'Обновляем…' : 'Обновить пинг'}</button></div>
+    <div class="location-actions"><button class="text-button" data-action="refresh">${icon('refresh')} Обновить подписку</button><button class="text-button" data-action="refresh-ping" ${state.pingBusy ? 'disabled' : ''}>${state.pingBusy ? '<span class="spinner" aria-hidden="true"></span>' : icon('refresh')} ${state.pingBusy ? 'Обновляем…' : 'Обновить пинг'}</button></div>
     <div class="region-list" role="radiogroup" aria-label="Локации">${REGIONS.map(region => `<button class="region-option" role="radio" aria-checked="${region.id === state.selectedRegion}" data-region="${region.id}" aria-label="${region.name}, ${transportLabel(region)}${region.id === 'auto' ? ', самый быстрый сервер' : ''}, демонстрационный пинг ${DEMO_LATENCY_MS[region.id === 'auto' ? DEMO_AUTO_REGION : region.id]} мс">${flag(region.flag)}<span class="location-copy"><strong>${region.name}</strong><small>${region.id === 'auto' ? 'Выбирает самый быстрый сервер' : `${loadBadge(region.load)}${protocolLabel(region)}`}</small></span>${latency(region.id)}${region.id === state.selectedRegion ? icon('check') : '<span class="radio-spacer"></span>'}</button>`).join('')}</div>
     <p class="selection-note">${icon('lock')}<span>Выбор сохраняется. При обновлении подписки локация сама не переключается.</span></p></section>`;
 }
@@ -180,11 +166,12 @@ function problem() {
 }
 
 function render() {
+  document.querySelector('#logout-button').hidden = !state.signedIn && !['ready', 'connected', 'error', 'expired', 'conflict'].includes(state.scenario);
   screen.classList.remove('error-view');
   screen.classList.toggle('home-view', state.view === 'home' && ['ready', 'connected', 'error', 'connecting'].includes(state.scenario));
   screen.setAttribute('aria-busy', String(state.busy));
   const region = REGIONS.find(region => region.id === state.selectedRegion);
-  screen.innerHTML = state.view === 'speedtest' ? renderSpeedTest({ region: region.name, flag: region.flag }) : SETTINGS_VIEWS.includes(state.view) ? renderSettings(state.view, preferences) : state.view === 'locations' ? locations() : state.scenario === 'welcome' ? welcome() : state.scenario === 'setup' ? setup() : state.scenario === 'auth-choice' ? renderAuthChoice(firstRun ? 'data-action="auth-back-setup"' : '') : state.scenario === 'rf-question' ? rfQuestion() : ['onboarding', 'login', 'telegram'].includes(state.scenario) ? onboarding() : ['expired', 'conflict'].includes(state.scenario) ? problem() : home();
+  screen.innerHTML = state.view === 'speedtest' ? renderSpeedTest({ region: region.name, flag: region.flag }) : SETTINGS_VIEWS.includes(state.view) ? renderSettings(state.view, preferences, { signedIn: state.signedIn || ['ready', 'connected', 'error', 'expired', 'conflict'].includes(state.scenario) }) : state.view === 'locations' ? locations() : state.scenario === 'welcome' ? welcome() : state.scenario === 'setup' ? setup() : state.scenario === 'auth-choice' ? renderAuthChoice(firstRun ? 'data-action="auth-back-setup"' : '') : state.scenario === 'rf-question' ? rfQuestion() : ['onboarding', 'login', 'telegram'].includes(state.scenario) ? onboarding() : ['expired', 'conflict'].includes(state.scenario) ? problem() : home();
   for (const button of scenarios.querySelectorAll('button')) button.setAttribute('aria-pressed', String(button.dataset.scenario === state.scenario));
   const key = state.view !== 'home' ? state.view : ['welcome', 'setup', 'auth-choice', 'onboarding', 'login', 'telegram', 'rf-question'].includes(state.scenario) ? `auth:${state.scenario}:${state.authMethod}` : ['expired', 'conflict'].includes(state.scenario) ? state.scenario : 'home';
   animateScreen(screen, { key, phase: state.busy ? 'connecting' : state.scenario, region: state.selectedRegion });
@@ -242,18 +229,8 @@ function selectAuth(method) {
   screen.querySelector('input, [data-action="telegram-start"]')?.focus();
 }
 
-async function signInDemo(method, credentials = null) {
+async function signInDemo(method) {
   if (state.busy) return;
-  if (method === 'cabinet' && (credentials?.email !== DEMO_LOGIN.email || credentials?.password !== DEMO_LOGIN.password)) {
-    const help = screen.querySelector('#cabinet-help');
-    help.textContent = 'В макете работают только указанные демоданные. Настоящий аккаунт не проверялся.';
-    help.classList.add('error');
-    const password = screen.querySelector('#cabinet-password');
-    password.value = '';
-    screen.querySelector('#cabinet-email').setAttribute('aria-invalid', 'true');
-    screen.querySelector('#cabinet-email').focus();
-    return;
-  }
   if (method === 'telegram' && !state.telegramPending) return;
   const current = ++generation;
   state.busy = true;
@@ -322,7 +299,6 @@ screen.addEventListener('submit', event => {
     return;
   }
   if (event.target.id === 'subscription-form') importDemo(data.get('subscription-link') || '');
-  if (event.target.id === 'cabinet-form') signInDemo('cabinet', { email: String(data.get('email') || '').trim(), password: String(data.get('password') || '') });
 });
 
 screen.addEventListener('click', event => {
@@ -371,7 +347,7 @@ screen.addEventListener('click', event => {
     return;
   }
   const auth = event.target.closest('[data-auth-choice]');
-  if (auth) { selectAuth(auth.dataset.authChoice === 'email' ? 'cabinet' : auth.dataset.authChoice); return; }
+  if (auth) { selectAuth(auth.dataset.authChoice); return; }
   const region = event.target.closest('[data-region]');
   if (region) {
     const wasConnected = state.scenario === 'connected';
@@ -410,7 +386,7 @@ screen.addEventListener('click', event => {
     case 'back':
       state.view = 'home'; render(); screen.querySelector('[data-action="locations"]').focus(); break;
     case 'example': importDemo(DEMO_LINK); break;
-    case 'cabinet-example': signInDemo('cabinet', DEMO_LOGIN); break;
+    case 'cabinet-example': signInDemo('cabinet'); break;
     case 'telegram-start': state.telegramPending = true; render(); break;
     case 'telegram-cancel': generation++; state.busy = false; state.telegramPending = false; render(); break;
     case 'telegram-confirm': signInDemo('telegram'); break;
@@ -441,6 +417,7 @@ screen.addEventListener('keydown', event => {
 });
 
 const about = document.querySelector('#about-dialog');
+document.querySelector('#logout-button').addEventListener('click', () => { returnFocus = document.querySelector('#logout-button'); remove.showModal(); });
 document.querySelector('#about-button').addEventListener('click', () => about.showModal());
 document.querySelector('#settings-button').addEventListener('click', () => {
   state.view = 'settings'; render(); screen.scrollTop = 0;

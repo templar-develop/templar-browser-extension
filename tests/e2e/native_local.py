@@ -196,14 +196,14 @@ def main():
                 check('TLS exceptions confined to fixture key/profile', driver.capabilities.get('acceptInsecureCerts') is False)
                 driver.execute_script("localStorage.setItem('templar-browser-onboarded','1')")
                 driver.refresh()
-                WebDriverWait(driver, 15).until(lambda d: d.find_elements(By.CSS_SELECTOR, '[data-auth="email"]'))
-                driver.find_element(By.CSS_SELECTOR, '[data-auth="email"]').click()
-                driver.find_element(By.ID, 'real-email').send_keys('local@example.invalid')
-                driver.find_element(By.ID, 'real-password').send_keys('local-fixture-only')
-                driver.find_element(By.CSS_SELECTOR, '#email-form button').click()
+                WebDriverWait(driver, 15).until(lambda d: d.find_elements(By.CSS_SELECTOR, '[data-auth="link"]'))
+                assert not driver.find_elements(By.CSS_SELECTOR, 'input[type="password"], [data-auth="email"]')
+                driver.find_element(By.CSS_SELECTOR, '[data-auth="link"]').click()
+                driver.find_element(By.ID, 'real-link').send_keys('https://sub.templarvpn.com/connect/demo-only/json')
+                driver.find_element(By.CSS_SELECTOR, '#link-form button').click()
                 WebDriverWait(driver, 15).until(lambda d: state().get('subscription'))
                 wait_idle()
-                check('real email form works after sanitizing DOM')
+                check('subscription form works and duplicate password form is absent')
                 layout = driver.execute_script('''const screen=document.querySelector('#screen');
                   const popup=document.querySelector('#popup');
                   return {height:popup.clientHeight, scroll:screen.scrollHeight, visible:screen.clientHeight,
