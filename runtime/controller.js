@@ -120,13 +120,17 @@ export class Controller {
     if (!this.login) { this.token(); return; }
     try {
       const login = checkedRefresh(this.login, this.now());
-      if (this.active) { this.status = 'connecting'; await this.driver.install(this.rules, null, true); }
       const result = await this.api.request('/auth/refresh', { method: 'POST', signal,
         body: { refreshToken: login.token, deviceId: await this.installationId() } });
       throwIfCancelled(signal);
       const account = checkedSession(result, this.now());
       const refreshed = checkedRefresh(result.refresh, this.now());
       if (refreshed.token !== login.token || refreshed.expiresAt > login.expiresAt) throw new Error('INVALID_RESPONSE');
+      // A failed refresh has not confirmed a replacement identity. Keep an
+      // unchanged authorized lease until its original deadline; once a new
+      // session is confirmed, block before adopting it and requesting its lease.
+      if (this.active) { this.status = 'connecting'; await this.driver.install(this.rules, null, true); }
+      throwIfCancelled(signal);
       this.account = account; this.login = refreshed;
       await this.local.set({ login: refreshed });
       await this.session.set({ account });

@@ -25,6 +25,7 @@ export class ProxyDriver {
         const current = await setting.get({});
         if (enabled && !['controllable_by_this_extension', 'controlled_by_this_extension'].includes(current.levelOfControl)) throw new Error('PROXY_CONFLICT');
         if (enabled) {
+          if (current.levelOfControl === 'controlled_by_this_extension' && current.value === value) continue;
           await setting.set({ value, scope: 'regular' });
           if (current.levelOfControl !== 'controlled_by_this_extension') changed.push(setting);
         } else if (current.levelOfControl === 'controlled_by_this_extension') await setting.clear({ scope: 'regular' });
