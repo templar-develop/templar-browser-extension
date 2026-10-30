@@ -21,6 +21,27 @@ test('Chrome installs mandatory PAC and restricts non-proxied WebRTC and predict
   assert.equal(f.rtc.sets[0].value, 'disable_non_proxied_udp'); assert.equal(f.prediction.sets[0].value, false);
   assert.equal(f.proxy.sets[0].value.pacScript.data.includes(f.lease.password), false);
 });
+
+test('repeated lease renewals retain owned privacy protection without rewriting unchanged settings', async () => {
+  const f = fixture();
+  for (const item of [f.rtc, f.prediction]) {
+    item.get = async () => ({ levelOfControl: item.level, value: item.sets.at(-1)?.value });
+  }
+  const rules = { mode: 'all', domains: [] };
+  for (let i = 0; i < 1000; i++) await f.driver.install(rules, { ...f.lease, expiresAt: f.lease.expiresAt + i });
+  assert.equal(f.proxy.sets.length, 1000, 'each new lease must still install its PAC deadline');
+  assert.equal(f.rtc.sets.length, 1);
+  assert.equal(f.prediction.sets.length, 1);
+  f.prediction.get = async () => ({ levelOfControl: 'controlled_by_this_extension', value: true });
+  await f.driver.install(rules, f.lease);
+  assert.equal(f.prediction.sets.length, 2, 'a changed value must be repaired');
+  f.rtc.level = 'controlled_by_other_extensions';
+  await assert.rejects(f.driver.install(rules, f.lease), /PROXY_CONFLICT/);
+  assert.equal(f.rtc.sets.length, 1, 'another extension must never be overwritten');
+  await f.driver.clear();
+  assert.equal(f.rtc.clears, 0);
+  assert.equal(f.prediction.clears, 1);
+});
 test('a competing extension prevents connection and its settings are not overwritten', async () => {
   const f = fixture(); f.proxy.level = 'controlled_by_other_extensions';
   await assert.rejects(f.driver.install({ mode: 'all', domains: [] }, f.lease), /PROXY_CONFLICT/);

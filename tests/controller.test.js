@@ -21,6 +21,32 @@ function fixture() {
   const api = { base: 'fixture', async request(path) { if (path === '/session') return account; if (path === '/connect') return lease; if (path === '/subscription') return account.subscription; if (path === '/latency') return tickets(account.subscription.regions); return {}; } };
   return { now, account, lease, driver, local, session, api, core: Object.assign(new Controller({ api, driver, local, session, now: () => now, gatewayProbe: async () => null }), { selectedRegion: 'ch' }) };
 }
+test('a transient remembered-login refresh failure keeps the original still-authorized route until its deadline', async () => {
+  for (const failure of ['SERVICE_UNAVAILABLE', 'RATE_LIMITED']) {
+    const f = fixture();
+    f.account.sessionExpiresAt = f.now + 90_000;
+    f.lease.expiresAt = f.now + 75_000;
+    await f.core.acceptSession({ ...f.account, refresh: { token: 'tvpn_refresh_123_' + 'r'.repeat(43), expiresAt: f.now + 86400_000 } });
+    await f.core.connect();
+    const original = structuredClone(f.core.lease), connectedAt = f.core.connectedAt;
+    const installs = f.driver.calls.length;
+    f.core.now = () => f.now + 40_000;
+    const request = f.api.request.bind(f.api);
+    f.api.request = async (path, options) => {
+      if (path === '/auth/refresh') throw new Error(failure);
+      return request(path, options);
+    };
+    await assert.rejects(f.core.refresh(), new RegExp(failure));
+    assert.equal(f.core.publicState().status, 'connected');
+    assert.deepEqual(f.core.lease, original);
+    assert.equal(f.core.connectedAt, connectedAt);
+    assert.equal(f.driver.calls.length, installs, 'a temporary auth outage must not replace the valid browser route');
+    f.core.now = () => original.expiresAt + 1;
+    await assert.rejects(f.core.refresh(), new RegExp(failure));
+    assert.equal(f.core.publicState().status, 'blocked');
+    assert.equal(f.driver.calls.at(-1).blocked, true);
+  }
+});
 test('connect, selected-region renewal and safe public state', async () => {
   const f = fixture(); await f.core.authenticate('/session', {}); await f.core.select('ch'); await f.core.connect();
   assert.equal(f.core.publicState().status, 'connected'); await f.core.refresh(); assert.equal(f.core.publicState().selectedRegion, 'ch');
