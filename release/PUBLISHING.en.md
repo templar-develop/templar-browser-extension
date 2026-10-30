@@ -4,8 +4,10 @@
 
 Checked against official store documentation on **30 October 2026**. There are
 no published Templar VPN listings yet. The README's “Soon” buttons link here.
-Source publication does not authorize store submission: uploads, signing and
-store release remain paused pending the owner's separate decision.
+Mozilla approved and signed Firefox 0.4.6 for unlisted self-distribution; permanent
+installation and restart are verified. Beta packages are available in
+[GitHub Releases](https://github.com/templar-develop/templar-browser-extension/releases).
+Public store listings and Chrome Web Store submission remain unauthorized.
 
 ## Current preparation
 
@@ -13,11 +15,11 @@ store release remain paused pending the owner's separate decision.
 | --- | --- |
 | Public source | Standalone GitHub history, GPL-3.0-only |
 | Documentation | Russian primary README and separate English version |
-| Packages | Local Chrome ZIP and unsigned Firefox ZIP/XPI candidates |
-| Validation | 105 JS tests; builds and Firefox lint with one reviewed DOMPurify warning |
+| Packages | Chromium beta packages and Mozilla-signed Firefox 0.4.6 for manual installation |
+| Validation | 111 JS tests; builds and Firefox lint with one reviewed DOMPurify warning |
 | Listing copy and permissions | RU/EN drafts in [STORE_DRAFT.md](STORE_DRAFT.md) |
 | Privacy information | Bundled [privacy.html](../privacy.html); the public store-policy URL still needs confirmation |
-| Store accounts | Chrome developer registration is unconfirmed; an AMO account has not been prepared |
+| Store accounts | Chrome developer registration is unconfirmed; Mozilla/AMO profile Templar has 2FA enabled |
 
 ## Chrome Web Store
 
@@ -76,7 +78,8 @@ store release remain paused pending the owner's separate decision.
 
 ## Remaining Templar work
 
-- [ ] Confirm both publisher accounts, contact details and two-factor protection.
+- [x] Prepare Mozilla/AMO and 2FA for the unlisted Firefox 0.4.6 signature.
+- [ ] Confirm the Chrome publisher account, contact details and two-factor protection.
 - [ ] Publish a stable project-domain HTTPS privacy policy and verify it against
   actual retention, deletion and subprocessors. Do not claim “no transmission”:
   account and proxy traffic are transmitted; measurements use Google/Cloudflare.
@@ -88,9 +91,10 @@ store release remain paused pending the owner's separate decision.
   screenshots or listings.
 - [ ] Select a final version/commit, build matching packages and retain SHA256.
   Increment versions for updates and preserve each store's extension identity.
-- [ ] Complete remaining signed-Firefox restart, OS sleep/wake, network handover,
-  long-duration operation and claimed-platform checks.
-- [ ] Obtain the owner's decision to submit/sign and complete store procedures.
+- [x] Verify the Mozilla signature, permanent Firefox installation and full restart.
+- [ ] Complete remaining OS sleep/wake, network handover, long-duration operation
+  and claimed-platform checks.
+- [ ] Obtain authorization for public store listings and complete store procedures.
 - [ ] Replace both README and website placeholders with the exact live listing
   URLs after the listings exist.
 
@@ -106,7 +110,7 @@ npm run release:prepare
 
 The local `artifacts/release/` directory contains the Chrome release ZIP,
 unsigned Firefox release ZIP/XPI, matching source ZIP and `SHA256SUMS`. Current
-filenames use `0.4.5`; the builder updates them when the version changes.
+filenames use `0.4.6`; the builder updates them when the version changes.
 Nothing is uploaded or signed by this command. See [VERIFYING.md](../VERIFYING.md)
 for comparison details. Store tokens, private keys, passwords and recovery codes
 must stay outside the repository.
