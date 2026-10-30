@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="ru">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Templar VPN — данные и подключение</title><link rel="stylesheet" href="site-brand.css"><link rel="stylesheet" href="styles.css"></head>
+<body><main class="privacy-page">
+<h1>Данные и подключение Templar VPN</h1>
+<p>Расширение направляет выбранный трафик этого браузера через сервис Templar VPN. Нужна активная подписка. Другие приложения и приватные окна этой сборкой не подключаются.</p>
+<h2>Вход и подписка</h2>
+<p>При входе сервису передаются введённые вами email и пароль, ссылка подписки или одноразовое подтверждение Telegram. Также передаётся случайный идентификатор установки для учёта лимита устройств. Пароль и ссылка подписки не сохраняются в расширении.</p>
+<p>Для сохранения входа расширение хранит на этом компьютере отдельный отзывной ключ. Он действует до 30 дней и не дольше подписки. Данные прокси и короткая сессия хранятся только в памяти сессии браузера. Локальное хранилище не защищает от программ, которые могут читать профиль браузера.</p>
+<h2>Передача браузерного трафика</h2>
+<p>Когда VPN включён, выбранные запросы идут через региональный шлюз Templar VPN и VPN-ноду. Сервису необходимы адрес назначения и сетевой трафик для доставки запросов. HTTPS сайтов остаётся зашифрован между браузером и сайтом; расширение не расшифровывает его. Незашифрованный HTTP не даёт такой защиты содержимого.</p>
+<p>Расширение не внедряет скрипты в сайты, не читает историю браузера и не собирает рекламную аналитику. Оно не добавляет cookies сайтов в API входа. Наличие прокси не означает, что адреса назначения вообще не передаются сервису.</p>
+<h2>Измерения</h2>
+<p>Обновление пинга проверяет HTTPS-ответ www.gstatic.com через каждую локацию; автовыбор сравнивает основные профили. Региональный шлюз получает короткий ограниченный ключ проверки и запрашивает только этот фиксированный сайт через вашу подписку. Google получает обычные сетевые данные этих тестовых запросов. Спидтест отправляет и получает тестовые байты через Cloudflare и выбранный VPN-маршрут, расходуя трафик. Cloudflare получает обычные сетевые данные этих запросов.</p>
+<h2>Управление</h2>
+<p>Кнопка выключения прекращает VPN-подключение. Правила доменов и переключатель российских сервисов определяют, какие сайты идут через VPN. «Выйти» удаляет сохранённый вход и пытается отозвать его на сервере. Без сети серверный отзыв нельзя гарантировать до истечения ключа.</p>
+<p>После явного отключения VPN остаётся выключенным при перезапуске. Если он был включён, расширение восстанавливает подключение; при истечении сессии защищённый трафик ожидает восстановления. Браузерные ограничения, другие расширения и системные политики могут влиять на прокси.</p>
+<h2>Диагностика и поддержка</h2>
+<p>Диагностический отчёт остаётся локальным, пока вы сами его не скопируете. Он содержит версию, статус и локацию, но не токены, пароль, ссылку подписки, личность пользователя или список ваших сайтов.</p>
+<p>Поддержка: <a href="mailto:support@templarvpn.com">support@templarvpn.com</a>. Не отправляйте пароль или ссылку подписки. Общие условия сервиса доступны на <a href="https://templarvpn.com/" target="_blank" rel="noopener noreferrer">сайте Templar VPN</a>.</p>
+<p lang="en">This extension routes selected browser traffic through Templar VPN. Sign-in information and a random installation identifier are sent to the service. A revocable sign-in key is stored locally for up to 30 days or subscription expiry. Proxy traffic includes destination addresses; HTTPS website contents remain end-to-end encrypted. No content scripts, history access or advertising analytics are used. Ping checks a fixed Google HTTPS endpoint through the regional gateways and your subscription; speed tests transfer data through Cloudflare. These services receive ordinary network data for the tests. Disconnect stops the VPN; sign out removes the saved key and attempts server revocation. Diagnostics stay local until you share them. This build does not support private windows.</p>
+</main></body></html>

@@ -1,0 +1,12 @@
+build/
+artifacts/
+node_modules/
+__pycache__/
+*.pyc
+server/
+.env
+.env.*
+*.key
+*.pem
+*.log
+.DS_Store

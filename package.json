@@ -1,0 +1,27 @@
+{
+  "name": "templar-browser-interface",
+  "version": "0.4.5",
+  "private": true,
+  "license": "GPL-3.0-only",
+  "type": "module",
+  "scripts": {
+    "postinstall": "node scripts/harden-build-deps.mjs",
+    "preview": "node scripts/preview.mjs",
+    "sync:brand": "node scripts/sync-site-brand.mjs",
+    "build": "node scripts/build.mjs",
+    "test": "node --test tests/*.test.js",
+    "lint:firefox": "node scripts/lint-firefox.mjs",
+    "release:prepare": "node scripts/prepare-release.mjs",
+    "source:prepare": "node scripts/public-source.mjs"
+  },
+  "devDependencies": {
+    "web-ext": "10.8.0"
+  },
+  "dependencies": {
+    "dompurify": "3.4.17"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/templar-develop/templar-browser-extension"
+  }
+}
