@@ -92,6 +92,7 @@
     "tests/e2e/native_local.py",
     "tests/flags.test.js",
     "tests/gateway-latency.test.js",
+    "tests/lifecycle-stress.test.js",
     "tests/measurement-queue.test.js",
     "tests/measurements.test.js",
     "tests/package.test.js",
@@ -100,6 +101,7 @@
     "tests/public-source.test.js",
     "tests/recovery.test.js",
     "tests/site-latency.test.js",
+    "tests/stability.test.js",
     "tests/starfield.test.js",
     "tests/telegram-login.test.js"
   ]

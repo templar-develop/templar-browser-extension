@@ -4,12 +4,11 @@
 
 [Website](https://templarvpn.com/) · [Telegram bot](https://t.me/TemplarVPN_bot) · [Account](https://cabinet.templarvpn.com/)
 
-Version 0.4.5, 29 October 2026. Unsigned development candidate. Required API and
-regional gateway fixes are deployed under the owner’s current authorization.
-Store publication and signing submission remain paused. Paris is the control
-plane; browser traffic enters the selected regional TLS gateway and the node's
-existing authenticated VLESS inbound. All subscription/device/traffic/exit rules
-remain shared with Happ. This protects this browser, not other applications.
+Version 0.4.6, 30 October 2026. The beta packages for manual installation are
+available in **[GitHub Releases](https://github.com/templar-develop/templar-browser-extension/releases)**.
+The Firefox package is signed by Mozilla and remains installed after restart.
+Store listings are not published yet. The extension protects browser traffic;
+other applications keep using their usual connection.
 
 ## Store installation
 
