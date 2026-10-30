@@ -1,5 +1,9 @@
 # Local store materials — draft only
 
+Current submission checklist (checked 30 October 2026):
+[Русский — основной](PUBLISHING.md) · [English](PUBLISHING.en.md).
+These are preparation materials; the source repository is public and store submission remains paused.
+
 The owner paused publication on 29 October 2026. Do not submit, sign, upload or
 deploy this kit. No developer AMO account is available yet. A release-channel
 directory is a local candidate, not evidence of publication or approval.
