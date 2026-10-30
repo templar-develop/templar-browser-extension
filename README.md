@@ -1,194 +1,221 @@
-# Templar VPN for Chrome / Firefox
+# Templar VPN для Chrome и Firefox
 
-Version 0.4.5, 29 October 2026. Unsigned development candidate. Required API and
-regional gateway fixes are deployed under the owner’s current authorization.
-Store publication and signing submission remain paused. Paris is the control
-plane; browser traffic enters the selected regional TLS gateway and the node's
-existing authenticated VLESS inbound. All subscription/device/traffic/exit rules
-remain shared with Happ. This protects this browser, not other applications.
+**Русский — основной** · [English](README.en.md)
 
-## Open source
+[Сайт Templar VPN](https://templarvpn.com/) · [Telegram-бот](https://t.me/TemplarVPN_bot) · [Личный кабинет](https://cabinet.templarvpn.com/)
 
-The original extension code is **GPL-3.0-only**, copyright 2026 Templar
-contributors. See [LICENSE](LICENSE), [LICENSE_SCOPE.md](LICENSE_SCOPE.md) and
-[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md). The source repository is
-[templar-develop/templar-browser-extension](https://github.com/templar-develop/templar-browser-extension).
-Signed store releases are not yet available.
-The separate backend, cabinet and bot are outside this source distribution.
+Открытые исходники браузерного расширения Templar VPN, версия **0.4.5**.
+Расширение подключает поддерживаемый браузер через выбранную локацию вашей
+подписки. Остальные приложения на устройстве продолжают работать со своим
+обычным подключением. Интерфейс поддерживает русский и английский языки.
 
-[VERIFYING.md](VERIFYING.md) explains building from an empty directory and
-comparing unsigned packages. [SECURITY.md](SECURITY.md) covers private reporting
-and trust boundaries. [CONTRIBUTING.md](CONTRIBUTING.md) describes contributions.
-`npm run source:prepare` exports the reviewed files listed in `public-source.json`
-without Git history, backend/pilot files, environment state or generated reports.
-Separate-account publication instructions are in
-[release/ACCOUNT_SETUP.md](release/ACCOUNT_SETUP.md).
+Сейчас доступны исходники и локальная сборка для разработки. Подписанных
+магазинных релизов пока нет; загрузка в магазины и отправка на подпись остаются
+на паузе. Не устанавливайте сборки из неизвестных источников.
 
-## Build and install
+## Возможности
 
-    npm ci
-    npm test
-    npm run build -- --api=https://cabinet.templarvpn.com/api/browser/v1
-    npm run lint:firefox
+- Вход по ссылке подписки, email и паролю от личного кабинета или через Telegram.
+- Выбор выданных подписке TCP/XHTTP-профилей и режим Auto.
+- Правила «Все сайты», «Только выбранные» и «Кроме выбранных».
+- Отдельная настройка обхода VPN для российских сервисов; для новой установки
+  эти сервисы по умолчанию идут напрямую. Сохранённый выбор пользователя учитывается.
+- Параллельный замер задержки HTTPS через выданные локации и проверка скорости.
+- Сохранение входа, восстановление подключения, отмена операций и локальная диагностика.
 
-Chrome: chrome://extensions → Developer mode → Load unpacked → build/chrome.
-After rebuilding/replacing files, click Reload on the existing extension in
-chrome://extensions. Restarting Chrome alone can retain the old background
-module graph while the popup/manifest already shows the new version. ZIP packages
-must be unpacked before loading them.
-Firefox: about:debugging#/runtime/this-firefox → Load Temporary Add-on →
-artifacts/templar-browser-firefox-0.4.5-dev.xpi. A temporary add-on disappears on
-browser restart. Permanent installation requires Mozilla signing.
-Source builds without --api deliberately cannot sign in/connect. The preview
-index.html does not change browser networking.
+Названия, порядок локаций, устройства, трафик и срок действия берутся из вашей
+подписки и согласованы с сервисом Happ. Новые выданные локации появляются из API,
+без обновления списка стран в расширении. Пользовательский трафик идёт на шлюз
+выбранной локации; управляющий сервер в Париже обслуживает API.
 
-Build tools: Node 20+, npm 8+, Python 3 with zipfile. The only bundled npm
-library is pinned DOMPurify, copied unchanged with its licenses. Firefox now
-requires 142+ and declares the required built-in data-consent categories.
-Private/incognito windows are explicitly unsupported. The existing About page
-links to the source repository and the bundled data/connection explanation.
+## Лицензия и состав репозитория
 
-`npm run release:prepare` creates **local files only** in artifacts/release:
-Chrome ZIP, unsigned Firefox ZIP/XPI, reproducible source ZIP and SHA256SUMS.
-There is no signing, deployment or upload step. The future Firefox release ID
-differs from the development ID; switching IDs requires a new sign-in.
-Store copy, permission justification and remaining submission prerequisites are
-in release/STORE_DRAFT.md. No account or signing secrets are included.
+Оригинальный код расширения распространяется под **GPL-3.0-only**, copyright
+2026 Templar contributors. Условия и границы лицензии:
+[LICENSE](LICENSE), [LICENSE_SCOPE.md](LICENSE_SCOPE.md),
+[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md). Для сторонних компонентов
+сохранены их лицензии и указание авторов. Английский текст GPL в LICENSE является
+текстом лицензии; это описание не заменяет его.
 
-The Mozilla linter reports one reviewed warning in unmodified DOMPurify's
-detached-document parser fallback. scripts/lint-firefox.mjs checks the exact
-file hash and warning location; errors and any other warning fail the check.
-Current npm audit: no bundled/runtime advisories; three low dev-tool findings
-in the web-ext → addons-linter → deepmerge chain remain upstream. Do not use
-`npm audit fix --force` to downgrade to an obsolete web-ext. These tools and
-their dependency tree are not included in extension packages.
+[Публичный репозиторий исходников](https://github.com/templar-develop/templar-browser-extension)
+содержит интерфейс, клиент API, управление браузерным прокси, сборку и тесты.
+Backend, бот, личный кабинет и эксплуатационные материалы обслуживаются отдельно
+и в эту публикацию не входят. История общего закрытого проекта не переносится.
 
-## Local native tests
+[VERIFYING.md](VERIFYING.md) описывает самостоятельную сборку и сравнение
+неподписанных пакетов, [SECURITY.md](SECURITY.md) — сообщения об уязвимостях,
+[CONTRIBUTING.md](CONTRIBUTING.md) — участие в разработке.
+Команда `npm run source:prepare` экспортирует только явно перечисленные в
+`public-source.json` файлы, без Git-истории, серверного pilot-кода, окружения,
+профилей браузеров и сгенерированных отчётов.
 
-`tests/e2e/native_local.py` launches Selenium with a separate temporary profile
-and loopback-only API, HTTPS proxy, ping responder and target website. It tests
-browser behavior against the real extension; it does not emulate production
-Xray/accounting or verify real gateway capacity. Ports 9441/9442/9443 must be free.
-Run sequentially using Python 3.11+ with Selenium and OpenSSL. Firefox also
-requires certutil (NSS tools); only its temporary profile trusts the fixture CA.
-Chromium pins only the fixture key, with acceptInsecureCerts=false. No system
-certificate store, personal browser profile or customer account is modified.
+## Сборка и установка
 
-From this extension directory, using a Python environment with Selenium:
+Нужны Node.js 20+, npm 8+ и Python 3 с модулем zipfile. Из папки исходников:
 
-    TEMPLAR_TEST_BINARY=/absolute/path/to/browser TEMPLAR_TEST_DRIVER=/absolute/path/to/driver TEMPLAR_TEST_OUT=/tmp/templar-local-results python3 tests/e2e/native_local.py chrome
+```sh
+npm ci
+npm test
+npm run build -- --api=https://cabinet.templarvpn.com/api/browser/v1
+npm run lint:firefox
+```
 
-Targets: chrome, firefox, edge, opera, brave, yandex. Use the matching official
-driver; Yandex requires YandexDriver matching its product version. Branded
-Chromium versions can restrict debugging installation; use Chrome for Testing
-for a reproducible Chrome run. The harness records failures as failures rather
-than treating successful browser launch as a VPN pass. Fixture builds are
-isolated under build/fixture and artifacts/fixture, have a separate name/Firefox
-ID and cannot be combined with --channel=release. The fixture proxy can tunnel
-only to its own local target, never to an arbitrary client-selected URL.
+**Chrome:** откройте `chrome://extensions`, включите режим разработчика, нажмите
+«Загрузить распакованное расширение» и выберите `build/chrome`.
+После пересборки нажмите настоящую кнопку «Обновить»/Reload на карточке
+расширения. Простого перезапуска браузера недостаточно: старые фоновые модули
+могут сохраниться, даже если всплывающее окно уже показывает новую версию.
+ZIP перед установкой нужно распаковать.
 
-For vendors that restrict WebDriver, tests/e2e/manual_local.py keeps the same
-fixture available for native UI checks. Set TEMPLAR_TEST_BINARY and
-TEMPLAR_TEST_OUT. Use only the displayed temporary test window and synthetic
-local credentials. The control file can switch the fixture API offline or
-shorten leases. A failed test-certificate request does not establish a
-production TLS failure or successful compatibility. Current Yandex coverage
-is limited; see the audit.
+**Firefox:** откройте `about:debugging#/runtime/this-firefox`, нажмите
+«Загрузить временное дополнение» и выберите
+`artifacts/templar-browser-firefox-0.4.5-dev.xpi`.
+Временное дополнение исчезает после перезапуска Firefox. Для постоянной установки
+нужна подпись Mozilla. Минимальная версия Firefox — 142, Chrome — 120.
+Приватные окна и инкогнито не поддерживаются.
 
-## Connection and measurements
+Сборка без `--api` намеренно не позволяет войти и подключиться.
+Страница `index.html` — демонстрационный макет, который не меняет сеть браузера.
+В разделе «О расширении» есть ссылки на исходники, сайт, бота и описание
+обработки данных.
 
-Link, email/password and Telegram sign-in use the existing account and one
-shared device slot per installation. Repeat sign-in reuses the slot. Issued
-names/order, TCP/XHTTP profiles and load indicators follow the subscription.
-New nodes appear dynamically after mandatory gateway/accounting verification.
+```sh
+npm run release:prepare
+```
 
-Auto compares HTTPS site response times through primary TCP profiles in parallel,
-then connects to the fastest available candidate. Temporary connection failures
-can try the next candidates (at most three); denial/invalid credentials never
-cause a fallback. A previously resolved Auto node is preferred during renewal.
-After its lease
-expires, an unavailable node no longer pins Auto forever: up to two other
-candidates may be tried, subject to the gateway’s conservative device reservation.
-A still-valid tunnel is preserved during a control API outage. Manual XHTTP
-selection remains unchanged. A site-ping snapshot is reused for 60 seconds.
-Missing results remain unknown.
+Эта команда создаёт только **локальные** файлы в `artifacts/release`: Chrome ZIP,
+неподписанные Firefox ZIP/XPI, архив исходников и SHA256SUMS.
+Она ничего не отправляет в магазин, не подписывает и не развёртывает.
+Release-ID Firefox отличается от ID для разработки; при смене ID потребуется
+повторный вход. Черновики для будущей публикации —
+[release/STORE_DRAFT.md](release/STORE_DRAFT.md).
 
-Refresh ping checks https://www.gstatic.com/generate_204 through every issued
-TCP/XHTTP profile independently, with up to eight concurrent requests. A separate
-15-second/three-request ticket lets the regional gateway perform only this fixed
-HTTPS check through the subscription's accounted inbound. No arbitrary URL, open
-relay, browser account bearer or proxy credential is exposed at that endpoint.
-One cold sample is discarded; two warm response times are averaged under a
-3.5-second profile budget. It does not replace an active VPN lease/routing/timer.
-Inline animated dots replace pending ping values without a top status panel.
-This is HTTPS site latency including bounded responder overhead, not ICMP ping.
-The existing port 9442 service remains a separate static gateway RTT diagnostic.
+## Подключение, Auto и замеры
 
-The coordinated `/latency` API, fixed-site responders on all five nodes and
-trusted localPort metadata are deployed. Legacy pinned DNS names are normalized
-through the same regional catalog as numeric endpoints. If site latency is
-temporarily unavailable, Auto privately ranks bounded gateway RTT instead, then
-requests an authorized lease. These fallback RTTs are never shown as site ping. Unknown pings
-stay as a dash. Authorization/lease failures still block protected traffic.
+Одна установка занимает общий слот устройства в подписке. Повторный вход
+использует тот же слот. Auto параллельно сравнивает HTTPS-задержку основных
+TCP-профилей и запрашивает подключение к доступному кандидату. При временной
+ошибке допускается не более трёх кандидатов. Отказ авторизации и некорректные
+ответы не разрешают обход проверки доступа. Ручной XHTTP-профиль остаётся
+самостоятельным выбором.
 
-To restore ordinary internet while VPN recovery is unavailable, use the explicit
-“Отключить VPN” button on the blocked screen or the power button. Disconnect clears
-the extension proxy locally even when the service is offline; an optional privacy
-cleanup failure does not keep VPN intent active. Removing the extension is not
-required. A competing proxy policy is never overwritten.
-New RF preferences default to No/direct; an explicit saved setting is preserved.
+При продлении Auto предпочитает уже выбранную локацию. Если её подключение
+истекло и локация недоступна, возможны до двух альтернатив с учётом серверного
+учёта устройств. Действующее разрешённое подключение сохраняется при временной
+ошибке API только до прежнего срока; расширение не продлевает его самостоятельно.
 
-Connect/Auto/Refresh, ping and speed jobs are serialized and cancellable.
-State reads bypass network jobs. Disconnect/Logout cancel in-flight work;
-late responses cannot install a cancelled lease. Popup closure does not cancel
-background work. During connecting, the power button cancels the connection.
+«Обновить пинг» проверяет `https://www.gstatic.com/generate_204` независимо через
+каждый выданный TCP/XHTTP-профиль, до восьми параллельных проверок. Региональный
+шлюз получает отдельный короткий билет на три запроса к фиксированному сайту.
+Первый замер прогревает соединение, два следующих усредняются; бюджет профиля —
+3,5 секунды. Снимок результатов используется до 60 секунд. Это задержка HTTPS
+с накладными расходами ответчика, а не ICMP-пинг. Отсутствующий результат
+показывается как неизвестный.
 
-## Sign-in and recovery
+Проверка пинга не заменяет действующее VPN-подключение, его правила или таймер.
+Если эта диагностика недоступна, Auto может внутренне ранжировать шлюзы по RTT,
+после чего всё равно получает разрешение через API подключения. Этот RTT
+не выводится как пинг сайта. Измерение скорости использует Cloudflare.
 
-Short access tokens and proxy credentials stay in trusted storage.session.
-Only a separate, scoped refresh credential is persisted in local extension
-storage, bound to the installation, subscription and browser device. It expires
-at the earlier of 30 days and subscription expiry. The service stores its HMAC,
-not plaintext. Fresh login replaces it. Logout revokes it and clears local data;
-offline revocation is best effort. Passwords and subscription links are never
-persisted, synchronized or included in diagnostics.
+При истёкшем или отклонённом разрешении защищаемый трафик блокируется до
+восстановления либо явного отключения. Кнопка «Отключить VPN» снимает прокси
+локально даже при недоступном сервисе. Во время подключения кнопка питания
+отменяет операцию. Отключение и выход отменяют фоновые задания; поздний ответ
+не должен установить отменённое подключение. Закрытие всплывающего окна
+само по себе не отменяет фоновую работу. Политика чужого прокси не перезаписывается.
 
-Local extension storage is not an OS keychain or protection against someone
-who can read the browser profile. TRUSTED_CONTEXTS is used when supported; no
-content scripts/external message handlers are installed. See the audit limits.
+## Сохранение входа и данные
 
-Existing unexpired 0.4.0 logins upgrade through an authenticated, installation-
-bound endpoint; expired old logins still require authentication. A full browser
-restart restores sign-in and prior VPN intent. Explicit disconnect stays off.
-Expired credentials block protected traffic until confirmed recovery. Startup,
-online/connection changes where supported, and the active 30-second renewal
-alarm retry recovery. Temporary API timeouts/rate limits preserve an existing
-authorized tunnel only until its original deadline, without extending access
-locally. Authorization denial, invalid responses, identity replacement and RF
-route replacement still block. A pinned node’s explicit missing-worker response
-allows immediate replacement after fresh authorization; an uncertain timeout
-never permits duplicate device workers. Browser sleep does not keep a server lease alive; after
-wake the next event/alarm restores it. Alarms are checked at startup because
-browser implementations differ in persistence. No idle sign-in/network polling
-runs while disconnected, apart from a user-started Telegram challenge.
+Короткие токены API и реквизиты прокси находятся в доверенном `storage.session`.
+В локальном хранилище сохраняется отдельный ограниченный токен восстановления,
+привязанный к установке и подписке. Его срок — до 30 дней, но не дольше подписки;
+сервер хранит HMAC, а не открытое значение. Пароли, ссылки подписки и реквизиты
+прокси не сохраняются в постоянном хранилище и не синхронизируются.
+Где браузер поддерживает это, используется `TRUSTED_CONTEXTS`.
 
-About → Show diagnostics produces an allowlisted local report: build version,
-connection/region state, route mode and safe error code. It omits tokens,
-passwords, subscription URLs, identities and the custom domain list. Nothing is
-sent to support automatically.
+Локальное хранилище расширения не является системной связкой ключей. Доступ
+к профилю браузера или компрометация самого браузера остаются отдельными рисками.
+Выход удаляет локальные реквизиты и пытается отозвать их на сервере; без сети
+немедленный отзыв на сервере не гарантируется и ограничивается сроком действия.
 
-## Provisioning and evidence
+При запуске браузера восстанавливаются сохранённый вход и прежнее намерение
+использовать VPN. Явно отключённый VPN остаётся выключенным. События запуска,
+доступности сети и активный 30-секундный таймер повторяют восстановление.
+Сон браузера не продлевает серверное разрешение: после пробуждения требуется
+его подтверждение. Во время отключения нет фонового опроса входа, кроме
+запущенного пользователем Telegram-подтверждения.
 
-Every future location must install its own gateway, private-destination guard,
-restricted SSH control, TLS renewal, the bounded 9442 TLS RTT responder and
-9441 fixed-site responder. The onboarding probe verifies the responders and authenticated VLESS transfer,
-accounting, renew/revoke before publishing the catalog. No extension update or
-hardcoded country list is needed. See AGENTS.md and ops/browser-gateway/README.md.
+«О расширении» → «Показать диагностику» создаёт локальный отчёт с версией,
+состоянием подключения, кодом региона, режимом маршрутизации и безопасным кодом
+ошибки. В него не включаются пароли, токены, ссылки подписки, личности и список
+пользовательских доменов. Отчёт не отправляется поддержке автоматически.
 
-Current 0.4.5 deployment and native/live evidence: docs/audits/2026-10-29-browser-readiness.md.
-Earlier packaging/browser evidence: docs/audits/2026-10-29-browser-release-preparation.md.
-Production 0.4.1 evidence: docs/audits/2026-10-29-browser-fast-recovery.md.
-Previous regional rollout/security: docs/audits/2026-10-29-browser-regional-gateways.md.
-Signing/store review, full Firefox permanent-install restart, long-duration
-capacity, actual OS sleep/real network handover and untested platforms remain
-release checks. Native smoke tests do not establish every Chromium fork's support.
+## Проверки безопасности и зависимости
+
+Исполняемый код включается в пакет локально. Content scripts, обработчики
+внешних сообщений и загружаемый с сервера исполняемый код не используются.
+CSP разрешает скрипты только из самого расширения. Фоновые команды принимаются
+только от его собственного `popup.html`. Адреса API, ссылки подписки,
+Telegram-вход и параметры прокси проверяются перед использованием. Прокси-пароль
+не выдаётся в ответ на обычный запрос авторизации сайта.
+
+Тесты проверяют в том числе подмену отправителя, инъекции в PAC/HTML, путаницу
+доменных суффиксов, истёкшие разрешения, отмену операций, редиректы API,
+ограничение размера ответа и отсутствие реквизитов в публичном состоянии.
+Это ограниченные проверки, а не гарантия отсутствия всех уязвимостей.
+Открытость исходников не доказывает безопасность отдельно работающего сервера.
+
+В пакет включена только закреплённая версия DOMPurify с её лицензиями.
+Firefox lint допускает одно проверенное предупреждение в неизменённом
+DOMPurify; проверяется точный хеш и место предупреждения. Остальные предупреждения
+и любые ошибки завершают проверку неуспешно.
+
+Аудит npm на 30 октября 2026 не сообщает известных уязвимостей runtime-зависимостей.
+В цепочке инструментов `web-ext → addons-linter → deepmerge` остаются три
+low-предупреждения об одной [известной проблеме deepmerge](https://github.com/advisories/GHSA-gcqx-w48m-w2h4).
+Скрипт postinstall применяет локальную защиту own-property к версии 4.3.1,
+а регрессионный тест проверяет отсутствие подмены прототипа. `npm audit`
+продолжает видеть исходную версию пакета. Эта цепочка не входит в расширение.
+Не применяйте `npm audit fix --force` для отката на устаревший web-ext.
+
+Об уязвимости сообщайте приватно на **support@templarvpn.com**; не отправляйте
+пароли, действующие ссылки подписки, ключи и каталоги профилей браузера.
+Подробности — [SECURITY.md](SECURITY.md).
+
+## Локальные проверки в браузерах
+
+`tests/e2e/native_local.py` использует Selenium и отдельный временный профиль
+с локальными API, HTTPS-прокси, ответчиком пинга и целевым сайтом.
+Он не эмулирует производственный Xray и учёт трафика и не подтверждает
+пропускную способность реальных шлюзов. Порты 9441/9442/9443 должны быть свободны.
+Нужны Python 3.11+, Selenium, OpenSSL и соответствующий официальный драйвер;
+для Firefox также certutil из NSS. Проверки запускаются последовательно.
+
+Только временный профиль Firefox доверяет тестовому CA. Chromium закрепляет
+ключ тестового сервиса с `acceptInsecureCerts=false`. Системное хранилище
+сертификатов, личные профили и клиентские аккаунты не меняются.
+
+```sh
+TEMPLAR_TEST_BINARY=/absolute/path/to/browser TEMPLAR_TEST_DRIVER=/absolute/path/to/driver TEMPLAR_TEST_OUT=/tmp/templar-local-results python3 tests/e2e/native_local.py chrome
+```
+
+Цели: chrome, firefox, edge, opera, brave, yandex. Для Yandex нужен совместимый
+YandexDriver; его покрытие ограничено. Успешный запуск браузера ещё не означает
+успешную проверку VPN. Chrome for Testing подходит для воспроизводимого запуска.
+Для ручной проверки предусмотрен `tests/e2e/manual_local.py` с тем же локальным
+стендом. Fixture-сборки имеют отдельные имя и Firefox-ID, находятся в
+`build/fixture` и `artifacts/fixture` и несовместимы с `--channel=release`.
+Их прокси соединяется только со своим тестовым сайтом.
+
+## Границы проверки и дальнейший выпуск
+
+Контракт клиента описан в [runtime/CONTRACT.md](runtime/CONTRACT.md), модель
+ресурсов — в [RESOURCE_MODEL.md](RESOURCE_MODEL.md). Адреса серверов и названия
+API не являются секретами авторизации. Доступ должен обеспечиваться серверными
+проверками подписки, устройства и коротких реквизитов.
+
+Подпись и проверка магазинами, полный перезапуск постоянно установленного
+подписанного Firefox-дополнения, длительная нагрузка, настоящий сон ОС,
+смена сети и неподтверждённые платформы остаются отдельными этапами.
+Успешные короткие проверки одного браузера не подтверждают поддержку всех
+Chromium-форков, всех устройств или многодневную стабильность.
