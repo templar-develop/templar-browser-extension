@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="270" height="60" viewBox="0 0 270 60" role="img" aria-labelledby="title desc">
+  <title id="title">Chrome Web Store — SOON</title>
+  <desc id="desc">The extension listing is not published yet.</desc>
+  <rect x="0.5" y="0.5" width="269" height="59" rx="12" fill="#171b20" stroke="#444c56"/>
+  <rect x="16" y="16" width="28" height="28" rx="7" fill="#252d37"/>
+  <path d="M24 24h12v10H24zM27 21h6M30 21v9m-3-3 3 3 3-3" fill="none" stroke="#bac4ce" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="56" y="35" fill="#f1f4f8" font-family="Arial,Helvetica,sans-serif" font-size="15" font-weight="600">Chrome Web Store</text>
+  <rect x="209" y="21" width="49" height="19" rx="5" fill="#343d48"/>
+  <text x="233.5" y="34" fill="#cbd2da" font-family="Arial,Helvetica,sans-serif" font-size="9" font-weight="700" text-anchor="middle">SOON</text>
+</svg>
