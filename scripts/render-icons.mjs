@@ -1,0 +1,10 @@
+import { readFile, mkdir } from 'node:fs/promises';
+import { fileURLToPath } from 'node:url';
+const sharp = (await import(process.env.TEMPLAR_SHARP_MODULE || 'sharp')).default;
+const root = new URL('../', import.meta.url);
+const original = await readFile(new URL('assets/mark.svg', root), 'utf8');
+const path = original.match(/<path[^>]+\/>/)[0];
+const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect x="1" y="1" width="98" height="98" rx="27" fill="#090b11" stroke="#f4ca73" stroke-opacity=".25" stroke-width="2"/>${path}</svg>`;
+await mkdir(new URL('assets/icons/', root), { recursive: true });
+for (const size of [16, 32, 48, 128]) await sharp(Buffer.from(svg)).resize(size, size).png().toFile(fileURLToPath(new URL(`assets/icons/${size}.png`, root)));
+console.log('Original landing logo rendered to extension icons.');
